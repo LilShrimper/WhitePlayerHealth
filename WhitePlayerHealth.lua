@@ -693,7 +693,7 @@ function WhitePlayerHealthColorPreviewMixin:OnLoad()
     -- Anchor side is set in RefreshColors(), based on which edge the
     -- real shield bar currently fills from.
     self.Shield = self:CreateTexture(nil, "OVERLAY")
-    self.Shield:SetWidth(self.barWidth * 0.32)
+    self.Shield:SetWidth(self.barWidth * 0.256)
 end
 
 function WhitePlayerHealthColorPreviewMixin:RefreshColors()
