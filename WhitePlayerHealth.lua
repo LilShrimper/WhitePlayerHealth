@@ -1,3 +1,7 @@
+--------------------------------------------------
+-- SAVED VARIABLE DEFAULTS
+--------------------------------------------------
+
 WhitePlayerHealthDB = WhitePlayerHealthDB or {}
 
 if WhitePlayerHealthDB.width == nil then
@@ -912,10 +916,14 @@ ApplySettings()
 UpdateHealth()
 UpdateAbsorb()
 UpdateVisibility()
+
 --------------------------------------------------
 -- ABSORB SKINNING
 --------------------------------------------------
 
+-- Recolors the default Personal Resource Display's absorb overlay to
+-- match this addon's own shield blue, in case PRD is still shown
+-- alongside (or instead of) this addon's bar.
 local function ApplyAbsorbSkin()
 
     local prd = PersonalResourceDisplayFrame
@@ -958,6 +966,8 @@ local absorbFrame = CreateFrame("Frame")
 
 absorbFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 
+-- PRD's regions aren't guaranteed to exist yet the instant the world
+-- finishes loading, so this waits a couple seconds before touching them.
 absorbFrame:SetScript("OnEvent", function()
 
     C_Timer.After(
@@ -966,4 +976,5 @@ absorbFrame:SetScript("OnEvent", function()
     )
 
 end)
+
 print("WhitePlayerHealth loaded")
