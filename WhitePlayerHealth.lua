@@ -2,6 +2,11 @@
 -- SAVED VARIABLE DEFAULTS
 --------------------------------------------------
 
+-- Hex strings (no leading #), since that's what Settings.CreateColorSwatch
+-- and CreateColorFromHexString both expect.
+local DEFAULT_HEALTH_COLOR = "FFFFFF"
+local DEFAULT_SHIELD_COLOR = "0099FF"
+
 WhitePlayerHealthDB = WhitePlayerHealthDB or {}
 
 if WhitePlayerHealthDB.width == nil then
@@ -36,6 +41,14 @@ if WhitePlayerHealthDB.absorbFillDirection == nil then
     WhitePlayerHealthDB.absorbFillDirection = "RTL"
 end
 
+if WhitePlayerHealthDB.healthColor == nil then
+    WhitePlayerHealthDB.healthColor = DEFAULT_HEALTH_COLOR
+end
+
+if WhitePlayerHealthDB.shieldColor == nil then
+    WhitePlayerHealthDB.shieldColor = DEFAULT_SHIELD_COLOR
+end
+
 --------------------------------------------------
 -- HELPERS
 --------------------------------------------------
@@ -64,7 +77,12 @@ bar:SetClampedToScreen(true)
 
 -- Ultra-minimal flat texture
 bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
-bar:SetStatusBarColor(1, 1, 1)
+
+local function ApplyHealthColor()
+    bar:SetStatusBarColor(CreateColorFromHexString(WhitePlayerHealthDB.healthColor):GetRGB())
+end
+
+ApplyHealthColor()
 
 --------------------------------------------------
 -- BACKGROUND
@@ -432,8 +450,14 @@ local absorbBar = CreateFrame("StatusBar", nil, bar)
 absorbBar:SetAllPoints(bar)
 absorbBar:SetFrameLevel(bar:GetFrameLevel() + 1)
 absorbBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
-absorbBar:SetStatusBarColor(0, 0.6, 1, 0.75)
 absorbBar:SetReverseFill(true)
+
+local function ApplyShieldColor()
+    local r, g, b = CreateColorFromHexString(WhitePlayerHealthDB.shieldColor):GetRGB()
+    absorbBar:SetStatusBarColor(r, g, b, 0.75)
+end
+
+ApplyShieldColor()
 
 -- WhitePlayerHealthDB.absorbFillDirection is "RTL" (default, fills
 -- from the right edge toward the left) or "LTR" (fills from the left
@@ -782,6 +806,73 @@ do
     )
 end
 
+WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Colors"))
+
+do
+    local function GetHealthColorSetting()
+        return WhitePlayerHealthDB.healthColor
+    end
+
+    local function SetHealthColorSetting(value)
+        WhitePlayerHealthDB.healthColor = value
+        ApplyHealthColor()
+    end
+
+    local healthColorSetting = Settings.RegisterProxySetting(
+        WPHSettingsCategory,
+        "WPH_HealthColor",
+        "string",
+        "Health Bar Color",
+        DEFAULT_HEALTH_COLOR,
+        GetHealthColorSetting,
+        SetHealthColorSetting
+    )
+
+    Settings.CreateColorSwatch(WPHSettingsCategory, healthColorSetting, "Color of the health bar fill.")
+end
+
+do
+    local function GetShieldColorSetting()
+        return WhitePlayerHealthDB.shieldColor
+    end
+
+    local function SetShieldColorSetting(value)
+        WhitePlayerHealthDB.shieldColor = value
+        ApplyShieldColor()
+    end
+
+    local shieldColorSetting = Settings.RegisterProxySetting(
+        WPHSettingsCategory,
+        "WPH_ShieldColor",
+        "string",
+        "Shield Bar Color",
+        DEFAULT_SHIELD_COLOR,
+        GetShieldColorSetting,
+        SetShieldColorSetting
+    )
+
+    Settings.CreateColorSwatch(WPHSettingsCategory, shieldColorSetting, "Color of the shield/absorb overlay.")
+end
+
+do
+    local function ResetColorsToDefault()
+        WhitePlayerHealthDB.healthColor = DEFAULT_HEALTH_COLOR
+        WhitePlayerHealthDB.shieldColor = DEFAULT_SHIELD_COLOR
+        ApplyHealthColor()
+        ApplyShieldColor()
+    end
+
+    WPHSettingsLayout:AddInitializer(
+        CreateSettingsButtonInitializer(
+            "Reset Colors",
+            "Set to Default Color",
+            ResetColorsToDefault,
+            "Restores the health bar to white and the shield overlay to blue.",
+            true
+        )
+    )
+end
+
 --------------------------------------------------
 -- COMMANDS
 --------------------------------------------------
@@ -851,8 +942,11 @@ UpdateVisibility()
 --------------------------------------------------
 
 -- Recolors the default Personal Resource Display's absorb overlay to
--- match this addon's own shield blue, in case PRD is still shown
--- alongside (or instead of) this addon's bar.
+-- match this addon's own shield color, in case PRD is still shown
+-- alongside (or instead of) this addon's bar. Only applied once at
+-- login (see the delayed timer below), so a shield color changed
+-- mid-session updates this addon's own bar immediately but PRD's
+-- overlay only catches up on the next /reload or login.
 local function ApplyAbsorbSkin()
     local prd = PersonalResourceDisplayFrame
 
@@ -870,20 +964,21 @@ local function ApplyAbsorbSkin()
         return
     end
 
+    local r, g, b = CreateColorFromHexString(WhitePlayerHealthDB.shieldColor):GetRGB()
+
     if hb.totalAbsorb then
-        hb.totalAbsorb:SetVertexColor(
-            0,
-            0.6,
-            1,
-            1
-        )
+        hb.totalAbsorb:SetVertexColor(r, g, b, 1)
     end
 
+    -- totalAbsorbOverlay is a highlight drawn on top of totalAbsorb, so
+    -- it's blended 40% toward white here rather than reusing the exact
+    -- same color - keeps the two visually distinct the way the original
+    -- hardcoded (0, 0.6, 1) base / (0.3, 0.8, 1) highlight pair were.
     if hb.totalAbsorbOverlay then
         hb.totalAbsorbOverlay:SetVertexColor(
-            0.3,
-            0.8,
-            1,
+            r + (1 - r) * 0.4,
+            g + (1 - g) * 0.4,
+            b + (1 - b) * 0.4,
             1
         )
     end
