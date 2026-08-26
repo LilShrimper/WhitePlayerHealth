@@ -875,11 +875,15 @@ do
 end
 
 do
+    -- Going through Settings.SetValue() (rather than writing
+    -- WhitePlayerHealthDB directly) also runs the setting's normal
+    -- change-notification path, so the swatches themselves visually
+    -- update immediately - a direct write updates the bar but leaves
+    -- the swatch widgets showing the old color until something else
+    -- forces them to redraw.
     local function ResetColorsToDefault()
-        WhitePlayerHealthDB.healthColor = DEFAULT_HEALTH_COLOR
-        WhitePlayerHealthDB.shieldColor = DEFAULT_SHIELD_COLOR
-        ApplyHealthColor()
-        ApplyShieldColor()
+        Settings.SetValue("WPH_HealthColor", DEFAULT_HEALTH_COLOR, true)
+        Settings.SetValue("WPH_ShieldColor", DEFAULT_SHIELD_COLOR, true)
     end
 
     WPHSettingsLayout:AddInitializer(
