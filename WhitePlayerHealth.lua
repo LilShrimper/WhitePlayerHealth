@@ -90,7 +90,6 @@ left:SetColorTexture(0, 0, 0, 1)
 right:SetColorTexture(0, 0, 0, 1)
 
 local function UpdateBorder()
-
     top:SetPoint("TOPLEFT", -1, 1)
     top:SetPoint("TOPRIGHT", 1, 1)
     top:SetHeight(1)
@@ -106,7 +105,6 @@ local function UpdateBorder()
     right:SetPoint("TOPRIGHT", 1, 1)
     right:SetPoint("BOTTOMRIGHT", 1, -1)
     right:SetWidth(1)
-
 end
 
 --------------------------------------------------
@@ -114,7 +112,6 @@ end
 --------------------------------------------------
 
 local function ApplySettings()
-
     bar:SetSize(
         WhitePlayerHealthDB.width,
         WhitePlayerHealthDB.height
@@ -131,7 +128,6 @@ local function ApplySettings()
     )
 
     UpdateBorder()
-
 end
 
 --------------------------------------------------
@@ -139,12 +135,9 @@ end
 --------------------------------------------------
 
 local function SavePosition()
-
     local _, _, _, x, y = bar:GetPoint()
-
     WhitePlayerHealthDB.x = RoundToInt(x)
     WhitePlayerHealthDB.y = RoundToInt(y)
-
 end
 
 --------------------------------------------------
@@ -152,7 +145,6 @@ end
 --------------------------------------------------
 
 local function SaveSize()
-
     WhitePlayerHealthDB.width = RoundToInt(bar:GetWidth())
     WhitePlayerHealthDB.height = RoundToInt(bar:GetHeight())
 
@@ -170,7 +162,6 @@ local function SaveSize()
     end
 
     ApplySettings()
-
 end
 
 --------------------------------------------------
@@ -259,7 +250,6 @@ editPanelTitle:SetPoint("TOP", editPanel, "TOP", 0, -8)
 editPanelTitle:SetText("WhitePlayerHealth")
 
 local function CreateEditPanelRow(labelText, yOffset)
-
     local label = editPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     label:SetPoint("TOPLEFT", editPanel, "TOPLEFT", 14, yOffset)
     label:SetText(labelText)
@@ -280,7 +270,6 @@ local function CreateEditPanelRow(labelText, yOffset)
     boxBg:SetColorTexture(1, 1, 1, 0.12)
 
     return box
-
 end
 
 local widthBox = CreateEditPanelRow("Width", -32)
@@ -308,12 +297,9 @@ editPanelHint:SetPoint("BOTTOM", editPanel, "BOTTOM", 0, 8)
 editPanelHint:SetText("Enter to apply - drag to move")
 
 local function SaveEditPanelPosition()
-
     local _, _, _, x, y = editPanel:GetPoint()
-
     WhitePlayerHealthDB.editPanelX = RoundToInt(x)
     WhitePlayerHealthDB.editPanelY = RoundToInt(y)
-
 end
 
 editPanel:SetScript("OnMouseDown", function(self)
@@ -343,7 +329,6 @@ end
 -- by Enter in either box, and by the Save & Close button - so clicking
 -- that button applies a typed value even if Enter was never pressed.
 local function ApplyPanelValues()
-
     local widthValue = tonumber(widthBox:GetText())
     local heightValue = tonumber(heightBox:GetText())
 
@@ -357,7 +342,6 @@ local function ApplyPanelValues()
 
     ApplySettings()
     RefreshEditPanelValues()
-
 end
 
 widthBox:SetScript("OnEnterPressed", function(self)
@@ -405,19 +389,15 @@ gripTexture:SetAllPoints()
 gripTexture:SetColorTexture(1, 1, 1, 0.9)
 
 resizeGrip:SetScript("OnMouseDown", function(self, button)
-
     if button == "LeftButton" then
         bar:StartSizing("BOTTOMRIGHT")
     end
-
 end)
 
 resizeGrip:SetScript("OnMouseUp", function()
-
     bar:StopMovingOrSizing()
     SaveSize()
     RefreshEditPanelValues()
-
 end)
 
 --------------------------------------------------
@@ -425,14 +405,12 @@ end)
 --------------------------------------------------
 
 local function UpdateHealth()
-
     local maxHealth = UnitHealthMax("player")
 
     if maxHealth and maxHealth > 0 then
         bar:SetMinMaxValues(0, maxHealth)
         bar:SetValue(UnitHealth("player"))
     end
-
 end
 
 --------------------------------------------------
@@ -466,7 +444,6 @@ local function ApplyAbsorbFillDirection()
 end
 
 local function UpdateAbsorb()
-
     local maxHealth = UnitHealthMax("player")
     local absorb = UnitGetTotalAbsorbs("player")
 
@@ -484,7 +461,6 @@ local function UpdateAbsorb()
     if absorb then
         absorbBar:SetValue(absorb)
     end
-
 end
 
 --------------------------------------------------
@@ -492,7 +468,6 @@ end
 --------------------------------------------------
 
 local function UpdateVisibility()
-
     if isEditMode then
         bar:Show()
         return
@@ -503,7 +478,6 @@ local function UpdateVisibility()
     else
         bar:Hide()
     end
-
 end
 
 --------------------------------------------------
@@ -511,22 +485,17 @@ end
 --------------------------------------------------
 
 local function SetUnlocked(unlocked)
-
     bar:EnableMouse(unlocked)
     resizeGrip:SetShown(unlocked)
     editPanel:SetShown(unlocked)
     UpdateGuideLineVisibility()
-
 end
 
 local function UnlockBar()
-
     SetUnlocked(true)
-
 end
 
 local function LockBar()
-
     isEditMode = false
 
     SetUnlocked(false)
@@ -535,22 +504,17 @@ local function LockBar()
     SavePosition()
     SaveSize()
     UpdateVisibility()
-
 end
 
 local function EnterEditMode()
-
     isEditMode = true
 
     UnlockBar()
     bar:Show()
-
 end
 
 local function ExitEditMode()
-
     LockBar()
-
 end
 
 saveCloseButton:SetScript("OnClick", function()
@@ -560,7 +524,6 @@ saveCloseButton:SetScript("OnClick", function()
 end)
 
 fillDirectionButton:SetScript("OnClick", function()
-
     if WhitePlayerHealthDB.absorbFillDirection == "LTR" then
         WhitePlayerHealthDB.absorbFillDirection = "RTL"
     else
@@ -569,7 +532,6 @@ fillDirectionButton:SetScript("OnClick", function()
 
     ApplyAbsorbFillDirection()
     RefreshEditPanelValues()
-
 end)
 
 --------------------------------------------------
@@ -601,16 +563,12 @@ events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 events:SetScript("OnEvent", function(_, event, unit)
-
     if event == "PLAYER_ENTERING_WORLD" then
-
         ApplySettings()
         UpdateHealth()
         UpdateAbsorb()
         UpdateVisibility()
-
         return
-
     end
 
     if event == "PLAYER_REGEN_DISABLED" then
@@ -629,7 +587,6 @@ events:SetScript("OnEvent", function(_, event, unit)
         UpdateHealth()
         UpdateAbsorb()
     end
-
 end)
 
 --------------------------------------------------
@@ -647,7 +604,6 @@ Settings.RegisterAddOnCategory(WPHSettingsCategory)
 WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Size"))
 
 do
-
     local function GetWidthSetting()
         return WhitePlayerHealthDB.width
     end
@@ -672,11 +628,9 @@ do
     widthOptions:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
 
     Settings.CreateSlider(WPHSettingsCategory, widthSetting, widthOptions, "Width of the health bar, in pixels.")
-
 end
 
 do
-
     local function GetHeightSetting()
         return WhitePlayerHealthDB.height
     end
@@ -701,25 +655,21 @@ do
     heightOptions:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right)
 
     Settings.CreateSlider(WPHSettingsCategory, heightSetting, heightOptions, "Height of the health bar, in pixels.")
-
 end
 
 WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Position & Locking"))
 
 do
-
     local function GetUnlockedSetting()
         return bar:IsMouseEnabled()
     end
 
     local function SetUnlockedSetting(value)
-
         if value then
             UnlockBar()
         else
             LockBar()
         end
-
     end
 
     local unlockedSetting = Settings.RegisterProxySetting(
@@ -737,11 +687,9 @@ do
         unlockedSetting,
         "Allow the bar to be dragged to move it, and resized using the handle in its bottom-right corner."
     )
-
 end
 
 do
-
     local function ResetBarPositionAndSize()
         WhitePlayerHealthDB.x = 0
         WhitePlayerHealthDB.y = 250
@@ -760,13 +708,11 @@ do
             true
         )
     )
-
 end
 
 WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Edit Mode Helpers"))
 
 do
-
     local function GetShowGuideSetting()
         return WhitePlayerHealthDB.showCenterGuide
     end
@@ -791,13 +737,11 @@ do
         showGuideSetting,
         "While the bar is unlocked, draws a vertical line down the screen's horizontal center (x = 0) to help line the bar up above your character."
     )
-
 end
 
 WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Shield"))
 
 do
-
     local function GetFillDirectionSetting()
         return WhitePlayerHealthDB.absorbFillDirection
     end
@@ -831,7 +775,6 @@ do
         GetFillDirectionOptions,
         "Choose which direction the shield overlay fills."
     )
-
 end
 
 --------------------------------------------------
@@ -841,14 +784,11 @@ end
 SLASH_WHITEPLAYERHEALTH1 = "/wph"
 
 SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
-
     local cmd, value = strsplit(" ", msg)
-
     cmd = (cmd or ""):lower()
     value = tonumber(value)
 
     if cmd == "" then
-
         if isEditMode then
             ExitEditMode()
             print("WhitePlayerHealth: edit mode off. Position and size saved.")
@@ -856,19 +796,13 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
             EnterEditMode()
             print("WhitePlayerHealth: edit mode on. Drag to move, drag the corner handle to resize, or type exact values in the panel. Type /wph again to finish.")
         end
-
     elseif cmd == "unlock" then
-
         UnlockBar()
         print("WhitePlayerHealth unlocked.")
-
     elseif cmd == "lock" then
-
         LockBar()
         print("WhitePlayerHealth locked.")
-
     elseif cmd == "reset" then
-
         WhitePlayerHealthDB.x = 0
         WhitePlayerHealthDB.y = 250
 
@@ -876,26 +810,18 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
         RefreshEditPanelValues()
 
         print("WhitePlayerHealth reset.")
-
     elseif cmd == "width" and value then
-
         WhitePlayerHealthDB.width = value
         ApplySettings()
         RefreshEditPanelValues()
-
     elseif cmd == "height" and value then
-
         WhitePlayerHealthDB.height = value
         ApplySettings()
         RefreshEditPanelValues()
-
     elseif cmd == "config" or cmd == "options" then
-
         -- Midnight requires the numeric category ID here, not the name.
         Settings.OpenToCategory(WPHSettingsCategory:GetID())
-
     else
-
         print("/wph - toggle edit mode (shows the bar, makes it movable/resizable, opens the quick-edit panel)")
         print("/wph unlock")
         print("/wph lock")
@@ -903,9 +829,7 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
         print("/wph width 240")
         print("/wph height 5")
         print("/wph config")
-
     end
-
 end
 
 --------------------------------------------------
@@ -925,7 +849,6 @@ UpdateVisibility()
 -- match this addon's own shield blue, in case PRD is still shown
 -- alongside (or instead of) this addon's bar.
 local function ApplyAbsorbSkin()
-
     local prd = PersonalResourceDisplayFrame
 
     if not prd then
@@ -959,7 +882,6 @@ local function ApplyAbsorbSkin()
             1
         )
     end
-
 end
 
 local absorbFrame = CreateFrame("Frame")
@@ -969,12 +891,10 @@ absorbFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 -- PRD's regions aren't guaranteed to exist yet the instant the world
 -- finishes loading, so this waits a couple seconds before touching them.
 absorbFrame:SetScript("OnEvent", function()
-
     C_Timer.After(
         2,
         ApplyAbsorbSkin
     )
-
 end)
 
 print("WhitePlayerHealth loaded")
