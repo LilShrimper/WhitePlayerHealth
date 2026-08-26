@@ -6,13 +6,16 @@ forget about.
 
 ## Features
 
-- Ultra-minimal flat white bar with a thin black border
+- Ultra-minimal flat bar (white by default) with a thin black border
 - Shows automatically while in combat, hides otherwise
-- Blue shield/absorb overlay, fill direction configurable
+- Shield/absorb overlay (blue by default), fill direction configurable
+- Bar and shield colors fully customizable via a color picker, with a
+  one-click reset back to the white/blue defaults
 - Drag to move, drag the corner handle to resize
 - Quick-edit panel for typing exact width/height while in edit mode
 - Settings panel (`Esc > Options > AddOns > WhitePlayerHealth`) for size,
-  position locking, the edit-mode center guide line, and shield fill direction
+  position locking, the edit-mode center guide line, shield fill direction,
+  and bar/shield colors
 - Position, size, and preferences saved per-character
 
 ## Usage
