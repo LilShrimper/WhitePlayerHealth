@@ -484,6 +484,57 @@ local function UpdateAbsorb()
 end
 
 --------------------------------------------------
+-- DEBUFF COLOR
+--------------------------------------------------
+
+-- Bar tints to match whichever dispel type is currently affecting the
+-- player, falling back to white when none are active. Bleeds have no
+-- dispelName of their own (they're untyped physical DoTs), so they're
+-- intentionally not handled here.
+local DEBUFF_COLORS = {
+    Magic   = {0, 0.2, 0.6},
+    Curse   = {0.6, 0, 1},
+    Poison  = {0, 0.6, 0},
+    Disease = {0.6, 0.4, 0},
+}
+
+-- Checked in this order when multiple debuff types are active at once;
+-- the first match wins.
+local DEBUFF_PRIORITY = {"Magic", "Curse", "Poison", "Disease"}
+
+local function GetActiveDebuffColor()
+
+    local found = {}
+
+    AuraUtil.ForEachAura("player", "HARMFUL", nil, function(aura)
+        if aura.dispelName and DEBUFF_COLORS[aura.dispelName] then
+            found[aura.dispelName] = true
+        end
+    end, true)
+
+    for _, debuffType in ipairs(DEBUFF_PRIORITY) do
+        if found[debuffType] then
+            return DEBUFF_COLORS[debuffType]
+        end
+    end
+
+    return nil
+
+end
+
+local function UpdateDebuffColor()
+
+    local color = GetActiveDebuffColor()
+
+    if color then
+        bar:SetStatusBarColor(color[1], color[2], color[3])
+    else
+        bar:SetStatusBarColor(1, 1, 1)
+    end
+
+end
+
+--------------------------------------------------
 -- VISIBILITY
 --------------------------------------------------
 
@@ -593,6 +644,7 @@ events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("UNIT_HEALTH")
 events:RegisterEvent("UNIT_MAXHEALTH")
 events:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
+events:RegisterEvent("UNIT_AURA")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 
@@ -603,6 +655,7 @@ events:SetScript("OnEvent", function(_, event, unit)
         ApplySettings()
         UpdateHealth()
         UpdateAbsorb()
+        UpdateDebuffColor()
         UpdateVisibility()
 
         return
@@ -624,6 +677,7 @@ events:SetScript("OnEvent", function(_, event, unit)
     if unit == "player" then
         UpdateHealth()
         UpdateAbsorb()
+        UpdateDebuffColor()
     end
 
 end)
@@ -911,6 +965,7 @@ end
 ApplySettings()
 UpdateHealth()
 UpdateAbsorb()
+UpdateDebuffColor()
 UpdateVisibility()
 --------------------------------------------------
 -- ABSORB SKINNING
