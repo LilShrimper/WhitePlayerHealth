@@ -593,10 +593,15 @@ end)
 
 local events = CreateFrame("Frame")
 
+-- RegisterUnitEvent (rather than RegisterEvent) filters at the engine
+-- level, so this handler only runs for the player's own health/absorb
+-- changes instead of firing - and then being ignored - for every
+-- visible unit's, which matters in raids/dungeons with many units on
+-- screen.
 events:RegisterEvent("PLAYER_ENTERING_WORLD")
-events:RegisterEvent("UNIT_HEALTH")
-events:RegisterEvent("UNIT_MAXHEALTH")
-events:RegisterEvent("UNIT_ABSORB_AMOUNT_CHANGED")
+events:RegisterUnitEvent("UNIT_HEALTH", "player")
+events:RegisterUnitEvent("UNIT_MAXHEALTH", "player")
+events:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 
