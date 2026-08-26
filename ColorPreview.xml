@@ -1,0 +1,19 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
+..\FrameXML\UI.xsd">
+    <!--
+        A single settings-list row, embedded via Settings.CreatePanelInitializer
+        (the same mechanism Blizzard's own Nameplates settings page uses for its
+        "NamePlate Preview" row). All child regions are built in Lua in the
+        mixin's OnLoad, to keep the visual styling consistent with the rest of
+        this addon (which is otherwise entirely Lua, no XML) rather than split
+        across both languages.
+    -->
+    <Frame name="WhitePlayerHealthColorPreviewTemplate" mixin="WhitePlayerHealthColorPreviewMixin" virtual="true">
+        <Size y="40"/>
+        <Scripts>
+            <OnLoad method="OnLoad"/>
+            <OnShow method="OnShow"/>
+            <OnHide method="OnHide"/>
+        </Scripts>
+    </Frame>
+</Ui>
