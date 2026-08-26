@@ -901,6 +901,32 @@ end
 -- COMMANDS
 --------------------------------------------------
 
+-- Settings.OpenToCategory can't run during combat lockdown - it just
+-- silently fails. Rather than let that happen with no feedback, this
+-- warns the player and opens the panel automatically once combat ends.
+local pendingConfigOpen = false
+
+local function OpenConfig()
+    if InCombatLockdown() then
+        pendingConfigOpen = true
+        print("WhitePlayerHealth: settings can't be opened during combat. Opening once you leave combat.")
+    else
+        -- Midnight requires the numeric category ID here, not the name.
+        Settings.OpenToCategory(WPHSettingsCategory:GetID())
+    end
+end
+
+local configOpenFrame = CreateFrame("Frame")
+
+configOpenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+configOpenFrame:SetScript("OnEvent", function()
+    if pendingConfigOpen then
+        pendingConfigOpen = false
+        Settings.OpenToCategory(WPHSettingsCategory:GetID())
+    end
+end)
+
 SLASH_WHITEPLAYERHEALTH1 = "/wph"
 
 SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
@@ -939,8 +965,7 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
         ApplySettings()
         RefreshEditPanelValues()
     elseif cmd == "config" or cmd == "options" then
-        -- Midnight requires the numeric category ID here, not the name.
-        Settings.OpenToCategory(WPHSettingsCategory:GetID())
+        OpenConfig()
     else
         print("/wph - toggle edit mode (shows the bar, makes it movable/resizable, opens the quick-edit panel)")
         print("/wph unlock")
