@@ -491,6 +491,30 @@ end
 -- player, falling back to white when none are active. Bleeds have no
 -- dispelName of their own (they're untyped physical DoTs), so they're
 -- intentionally not handled here.
+--
+-- Both GetAuraSlots (used by AuraUtil.ForEachAura) and index-based reads
+-- (C_UnitAuras.GetAuraDataByIndex) are blocked outright once auras go
+-- Secret (combat, Mythic+, instance encounters, PvP - Patch 12.1), so
+-- neither can be used to inspect dispelName directly in those states.
+--
+-- The sanctioned replacement is C_UnitAuras.GetAuraDispelTypeColor(),
+-- the same mechanism Blizzard's own CustomAuraButton dispel-coloring
+-- uses internally (see GetCustomDispelTypeTextureColor() in
+-- Blizzard_CustomAuraButton.lua). It maps a (possibly-secret) aura's
+-- dispel type straight to a color via a curve, entirely outside Lua, so
+-- the type itself is never exposed to addon code - we just get back a
+-- color (secret if the input was) to hand straight to SetStatusBarColor.
+--
+-- C_UnitAuras.GetUnitAuraInstanceIDs() is the paired enumeration call:
+-- unlike slot/index access, the instance ID list itself stays non-secret
+-- even when the auras behind those IDs are, so it's safe to iterate.
+--
+-- Trade-off: because the resulting color may itself be secret, it can't
+-- be compared in Lua to pick a "winner" among several active debuffs -
+-- so a real Magic > Curse > Poison > Disease priority isn't achievable
+-- here. Instead maxCount = 1 with the "Default" sort rule asks the API
+-- for whichever single harmful aura WoW's own UI would consider most
+-- relevant, and that's what gets colored.
 local DEBUFF_COLORS = {
     Magic   = {0, 0.2, 0.6},
     Curse   = {0.6, 0, 1},
@@ -498,56 +522,31 @@ local DEBUFF_COLORS = {
     Disease = {0.6, 0.4, 0},
 }
 
--- Checked in this order when multiple debuff types are active at once;
--- the first match wins.
-local DEBUFF_PRIORITY = {"Magic", "Curse", "Poison", "Disease"}
-
--- Deliberately uses the older index-based C_UnitAuras.GetAuraDataByIndex
--- loop instead of AuraUtil.ForEachAura here. ForEachAura batch-fetches
--- aura slots via C_UnitAuras.GetAuraSlots(), which this game version
--- refuses to run from tainted (addon) code once auras are Secret
--- ("GetAuraSlots(): Auras cannot be accessed when secret while tainted").
--- Fetching one aura at a time by index avoids GetAuraSlots entirely.
-local function GetActiveDebuffColor()
-
-    local found = {}
-    local index = 1
-
-    while true do
-
-        local aura = C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")
-
-        if not aura then
-            break
-        end
-
-        if aura.dispelName and DEBUFF_COLORS[aura.dispelName] then
-            found[aura.dispelName] = true
-        end
-
-        index = index + 1
-
-    end
-
-    for _, debuffType in ipairs(DEBUFF_PRIORITY) do
-        if found[debuffType] then
-            return DEBUFF_COLORS[debuffType]
-        end
-    end
-
-    return nil
-
-end
+-- x = dispel type ID. Not documented for GetAuraDispelTypeColor
+-- specifically, but 0/1/2/3/4 = None/Magic/Curse/Disease/Poison matches
+-- the long-standing SpellDispelType values used elsewhere in WoW's data.
+-- Verify in game against a known debuff of each type - if the colors
+-- come out wrong or blended, these IDs are the first thing to check.
+local dispelColorCurve = C_CurveUtil.CreateColorCurve({
+    {0, 1,                    1,                    1,                    1},
+    {1, DEBUFF_COLORS.Magic[1],   DEBUFF_COLORS.Magic[2],   DEBUFF_COLORS.Magic[3],   1},
+    {2, DEBUFF_COLORS.Curse[1],   DEBUFF_COLORS.Curse[2],   DEBUFF_COLORS.Curse[3],   1},
+    {3, DEBUFF_COLORS.Disease[1], DEBUFF_COLORS.Disease[2], DEBUFF_COLORS.Disease[3], 1},
+    {4, DEBUFF_COLORS.Poison[1],  DEBUFF_COLORS.Poison[2],  DEBUFF_COLORS.Poison[3],  1},
+})
 
 local function UpdateDebuffColor()
 
-    local color = GetActiveDebuffColor()
+    local instanceIDs = C_UnitAuras.GetUnitAuraInstanceIDs("player", "HARMFUL", 1, "Default")
+    local instanceID = instanceIDs[1]
 
-    if color then
-        bar:SetStatusBarColor(color[1], color[2], color[3])
-    else
+    if not instanceID then
         bar:SetStatusBarColor(1, 1, 1)
+        return
     end
+
+    local color = C_UnitAuras.GetAuraDispelTypeColor("player", instanceID, dispelColorCurve)
+    bar:SetStatusBarColor(color:GetRGBA())
 
 end
 
