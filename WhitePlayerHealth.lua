@@ -72,6 +72,18 @@ local function RoundToInt(value)
     end
 end
 
+-- Falls back to a known-good default whenever a saved color is missing
+-- or the wrong length, so CreateColorFromHexString (which errors on
+-- anything but an 8-digit ARGB string) never gets handed bad data -
+-- regardless of why it ended up that way.
+local function GetValidHexColor(hexColor, defaultHex)
+    if hexColor and #hexColor == 8 then
+        return hexColor
+    end
+
+    return defaultHex
+end
+
 --------------------------------------------------
 -- BAR
 --------------------------------------------------
@@ -85,7 +97,8 @@ bar:SetClampedToScreen(true)
 bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
 
 local function ApplyHealthColor()
-    bar:SetStatusBarColor(CreateColorFromHexString(WhitePlayerHealthDB.healthColor):GetRGB())
+    local hexColor = GetValidHexColor(WhitePlayerHealthDB.healthColor, DEFAULT_HEALTH_COLOR)
+    bar:SetStatusBarColor(CreateColorFromHexString(hexColor):GetRGB())
 end
 
 ApplyHealthColor()
@@ -459,7 +472,8 @@ absorbBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
 absorbBar:SetReverseFill(true)
 
 local function ApplyShieldColor()
-    local r, g, b = CreateColorFromHexString(WhitePlayerHealthDB.shieldColor):GetRGB()
+    local hexColor = GetValidHexColor(WhitePlayerHealthDB.shieldColor, DEFAULT_SHIELD_COLOR)
+    local r, g, b = CreateColorFromHexString(hexColor):GetRGB()
     absorbBar:SetStatusBarColor(r, g, b, 0.75)
 end
 
@@ -970,7 +984,8 @@ local function ApplyAbsorbSkin()
         return
     end
 
-    local r, g, b = CreateColorFromHexString(WhitePlayerHealthDB.shieldColor):GetRGB()
+    local hexColor = GetValidHexColor(WhitePlayerHealthDB.shieldColor, DEFAULT_SHIELD_COLOR)
+    local r, g, b = CreateColorFromHexString(hexColor):GetRGB()
 
     if hb.totalAbsorb then
         hb.totalAbsorb:SetVertexColor(r, g, b, 1)
