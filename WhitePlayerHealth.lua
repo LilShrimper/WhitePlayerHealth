@@ -499,6 +499,10 @@ ApplyShieldColor()
 -- case anything ever resets the flag.
 local function ApplyAbsorbFillDirection()
     absorbBar:SetReverseFill(WhitePlayerHealthDB.absorbFillDirection ~= "LTR")
+
+    for preview in pairs(activeColorPreviews) do
+        preview:RefreshColors()
+    end
 end
 
 local function UpdateAbsorb()
@@ -668,9 +672,11 @@ WhitePlayerHealthColorPreviewMixin = {}
 function WhitePlayerHealthColorPreviewMixin:OnLoad()
     local width, height = 200, 14
 
+    self.barWidth = width - 2
+
     self.Bg = self:CreateTexture(nil, "BACKGROUND")
     self.Bg:SetSize(width, height)
-    self.Bg:SetPoint("RIGHT", self, "RIGHT", -30, 0)
+    self.Bg:SetPoint("LEFT", self, "LEFT", 300, 0)
     self.Bg:SetColorTexture(0, 0, 0, 1)
 
     self.Label = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -679,15 +685,15 @@ function WhitePlayerHealthColorPreviewMixin:OnLoad()
 
     self.Health = self:CreateTexture(nil, "ARTWORK")
     self.Health:SetPoint("TOPLEFT", self.Bg, "TOPLEFT", 1, -1)
-    self.Health:SetSize(width - 2, height - 2)
+    self.Health:SetSize(self.barWidth, height - 2)
 
     -- Shield overlay only covers part of the bar (rather than the
     -- whole thing) specifically so the health color underneath stays
     -- visible too - the point is comparing the two colors together.
+    -- Anchor side is set in RefreshColors(), based on which edge the
+    -- real shield bar currently fills from.
     self.Shield = self:CreateTexture(nil, "OVERLAY")
-    self.Shield:SetPoint("TOPRIGHT", self.Health, "TOPRIGHT")
-    self.Shield:SetPoint("BOTTOMRIGHT", self.Health, "BOTTOMRIGHT")
-    self.Shield:SetWidth((width - 2) * 0.4)
+    self.Shield:SetWidth(self.barWidth * 0.4)
 end
 
 function WhitePlayerHealthColorPreviewMixin:RefreshColors()
@@ -698,6 +704,16 @@ function WhitePlayerHealthColorPreviewMixin:RefreshColors()
 
     local r, g, b = CreateColorFromHexString(shieldHex):GetRGB()
     self.Shield:SetColorTexture(r, g, b, 0.75)
+
+    self.Shield:ClearAllPoints()
+
+    if WhitePlayerHealthDB.absorbFillDirection == "LTR" then
+        self.Shield:SetPoint("TOPLEFT", self.Health, "TOPLEFT")
+        self.Shield:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMLEFT")
+    else
+        self.Shield:SetPoint("TOPRIGHT", self.Health, "TOPRIGHT")
+        self.Shield:SetPoint("BOTTOMRIGHT", self.Health, "BOTTOMRIGHT")
+    end
 end
 
 function WhitePlayerHealthColorPreviewMixin:OnShow()
@@ -898,6 +914,7 @@ do
 end
 
 WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Colors"))
+WPHSettingsLayout:AddInitializer(Settings.CreatePanelInitializer("WhitePlayerHealthColorPreviewTemplate", {}))
 
 do
     local function GetHealthColorSetting()
@@ -944,8 +961,6 @@ do
 
     Settings.CreateColorSwatch(WPHSettingsCategory, shieldColorSetting, "Color of the shield/absorb overlay.")
 end
-
-WPHSettingsLayout:AddInitializer(Settings.CreatePanelInitializer("WhitePlayerHealthColorPreviewTemplate", {}))
 
 do
     -- Going through Settings.SetValue() (rather than writing
