@@ -502,15 +502,32 @@ local DEBUFF_COLORS = {
 -- the first match wins.
 local DEBUFF_PRIORITY = {"Magic", "Curse", "Poison", "Disease"}
 
+-- Deliberately uses the older index-based C_UnitAuras.GetAuraDataByIndex
+-- loop instead of AuraUtil.ForEachAura here. ForEachAura batch-fetches
+-- aura slots via C_UnitAuras.GetAuraSlots(), which this game version
+-- refuses to run from tainted (addon) code once auras are Secret
+-- ("GetAuraSlots(): Auras cannot be accessed when secret while tainted").
+-- Fetching one aura at a time by index avoids GetAuraSlots entirely.
 local function GetActiveDebuffColor()
 
     local found = {}
+    local index = 1
 
-    AuraUtil.ForEachAura("player", "HARMFUL", nil, function(aura)
+    while true do
+
+        local aura = C_UnitAuras.GetAuraDataByIndex("player", index, "HARMFUL")
+
+        if not aura then
+            break
+        end
+
         if aura.dispelName and DEBUFF_COLORS[aura.dispelName] then
             found[aura.dispelName] = true
         end
-    end, true)
+
+        index = index + 1
+
+    end
 
     for _, debuffType in ipairs(DEBUFF_PRIORITY) do
         if found[debuffType] then
