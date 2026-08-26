@@ -676,7 +676,7 @@ function WhitePlayerHealthColorPreviewMixin:OnLoad()
 
     self.Bg = self:CreateTexture(nil, "BACKGROUND")
     self.Bg:SetSize(width, height)
-    self.Bg:SetPoint("LEFT", self, "LEFT", 230, 0)
+    self.Bg:SetPoint("LEFT", self, "LEFT", 175, 0)
     self.Bg:SetColorTexture(0, 0, 0, 1)
 
     self.Label = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
@@ -693,7 +693,7 @@ function WhitePlayerHealthColorPreviewMixin:OnLoad()
     -- Anchor side is set in RefreshColors(), based on which edge the
     -- real shield bar currently fills from.
     self.Shield = self:CreateTexture(nil, "OVERLAY")
-    self.Shield:SetWidth(self.barWidth * 0.4)
+    self.Shield:SetWidth(self.barWidth * 0.32)
 end
 
 function WhitePlayerHealthColorPreviewMixin:RefreshColors()
