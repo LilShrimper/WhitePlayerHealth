@@ -676,7 +676,7 @@ function WhitePlayerHealthColorPreviewMixin:OnLoad()
 
     self.Bg = self:CreateTexture(nil, "BACKGROUND")
     self.Bg:SetSize(width, height)
-    self.Bg:SetPoint("LEFT", self, "LEFT", 300, 0)
+    self.Bg:SetPoint("LEFT", self, "LEFT", 230, 0)
     self.Bg:SetColorTexture(0, 0, 0, 1)
 
     self.Label = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
