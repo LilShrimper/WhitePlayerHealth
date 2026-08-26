@@ -84,6 +84,12 @@ local function GetValidHexColor(hexColor, defaultHex)
     return defaultHex
 end
 
+-- Settings-panel color preview rows (see COLOR PREVIEW below) register
+-- themselves here while shown, so ApplyHealthColor/ApplyShieldColor can
+-- push live updates into them as the color picker is dragged, not just
+-- refresh them the next time they're shown.
+local activeColorPreviews = {}
+
 --------------------------------------------------
 -- BAR
 --------------------------------------------------
@@ -99,6 +105,10 @@ bar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
 local function ApplyHealthColor()
     local hexColor = GetValidHexColor(WhitePlayerHealthDB.healthColor, DEFAULT_HEALTH_COLOR)
     bar:SetStatusBarColor(CreateColorFromHexString(hexColor):GetRGB())
+
+    for preview in pairs(activeColorPreviews) do
+        preview:RefreshColors()
+    end
 end
 
 ApplyHealthColor()
@@ -475,6 +485,10 @@ local function ApplyShieldColor()
     local hexColor = GetValidHexColor(WhitePlayerHealthDB.shieldColor, DEFAULT_SHIELD_COLOR)
     local r, g, b = CreateColorFromHexString(hexColor):GetRGB()
     absorbBar:SetStatusBarColor(r, g, b, 0.75)
+
+    for preview in pairs(activeColorPreviews) do
+        preview:RefreshColors()
+    end
 end
 
 ApplyShieldColor()
@@ -485,6 +499,10 @@ ApplyShieldColor()
 -- case anything ever resets the flag.
 local function ApplyAbsorbFillDirection()
     absorbBar:SetReverseFill(WhitePlayerHealthDB.absorbFillDirection ~= "LTR")
+
+    for preview in pairs(activeColorPreviews) do
+        preview:RefreshColors()
+    end
 end
 
 local function UpdateAbsorb()
@@ -637,6 +655,75 @@ events:SetScript("OnEvent", function(_, event, unit)
         UpdateAbsorb()
     end
 end)
+
+--------------------------------------------------
+-- COLOR PREVIEW (settings panel)
+--------------------------------------------------
+
+-- Embedded into the Colors section as its own row (see
+-- Settings.CreatePanelInitializer below), showing full health with a
+-- partial shield overlay so both colors stay visible side by side for
+-- comparison. This is the only place the colors can be previewed
+-- without being in combat or edit mode, since that's the only two
+-- states the real bar is ever shown in. Global (not local) because the
+-- XML template's mixin="" attribute resolves it by name.
+WhitePlayerHealthColorPreviewMixin = {}
+
+function WhitePlayerHealthColorPreviewMixin:OnLoad()
+    local width, height = 200, 14
+
+    self.barWidth = width - 2
+
+    self.Bg = self:CreateTexture(nil, "BACKGROUND")
+    self.Bg:SetSize(width, height)
+    self.Bg:SetPoint("LEFT", self, "LEFT", 175, 0)
+    self.Bg:SetColorTexture(0, 0, 0, 1)
+
+    self.Label = self:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    self.Label:SetPoint("BOTTOM", self.Bg, "TOP", 0, 4)
+    self.Label:SetText("Preview")
+
+    self.Health = self:CreateTexture(nil, "ARTWORK")
+    self.Health:SetPoint("TOPLEFT", self.Bg, "TOPLEFT", 1, -1)
+    self.Health:SetSize(self.barWidth, height - 2)
+
+    -- Shield overlay only covers part of the bar (rather than the
+    -- whole thing) specifically so the health color underneath stays
+    -- visible too - the point is comparing the two colors together.
+    -- Anchor side is set in RefreshColors(), based on which edge the
+    -- real shield bar currently fills from.
+    self.Shield = self:CreateTexture(nil, "OVERLAY")
+    self.Shield:SetWidth(self.barWidth * 0.256)
+end
+
+function WhitePlayerHealthColorPreviewMixin:RefreshColors()
+    local healthHex = GetValidHexColor(WhitePlayerHealthDB.healthColor, DEFAULT_HEALTH_COLOR)
+    local shieldHex = GetValidHexColor(WhitePlayerHealthDB.shieldColor, DEFAULT_SHIELD_COLOR)
+
+    self.Health:SetColorTexture(CreateColorFromHexString(healthHex):GetRGB())
+
+    local r, g, b = CreateColorFromHexString(shieldHex):GetRGB()
+    self.Shield:SetColorTexture(r, g, b, 0.75)
+
+    self.Shield:ClearAllPoints()
+
+    if WhitePlayerHealthDB.absorbFillDirection == "LTR" then
+        self.Shield:SetPoint("TOPLEFT", self.Health, "TOPLEFT")
+        self.Shield:SetPoint("BOTTOMLEFT", self.Health, "BOTTOMLEFT")
+    else
+        self.Shield:SetPoint("TOPRIGHT", self.Health, "TOPRIGHT")
+        self.Shield:SetPoint("BOTTOMRIGHT", self.Health, "BOTTOMRIGHT")
+    end
+end
+
+function WhitePlayerHealthColorPreviewMixin:OnShow()
+    self:RefreshColors()
+    activeColorPreviews[self] = true
+end
+
+function WhitePlayerHealthColorPreviewMixin:OnHide()
+    activeColorPreviews[self] = nil
+end
 
 --------------------------------------------------
 -- SETTINGS MENU
@@ -827,6 +914,7 @@ do
 end
 
 WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Colors"))
+WPHSettingsLayout:AddInitializer(Settings.CreatePanelInitializer("WhitePlayerHealthColorPreviewTemplate", {}))
 
 do
     local function GetHealthColorSetting()
