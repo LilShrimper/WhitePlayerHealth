@@ -2,10 +2,12 @@
 -- SAVED VARIABLE DEFAULTS
 --------------------------------------------------
 
--- Hex strings (no leading #), since that's what Settings.CreateColorSwatch
--- and CreateColorFromHexString both expect.
-local DEFAULT_HEALTH_COLOR = "FFFFFF"
-local DEFAULT_SHIELD_COLOR = "0099FF"
+-- 8-digit ARGB hex strings (alpha, then red/green/blue) - the format
+-- CreateColorFromHexString requires and Settings.CreateColorSwatch's
+-- built-in widget round-trips through internally (GenerateHexColor()).
+-- A 6-digit RGB string here makes CreateColorFromHexString return nil.
+local DEFAULT_HEALTH_COLOR = "FFFFFFFF"
+local DEFAULT_SHIELD_COLOR = "FF0099FF"
 
 WhitePlayerHealthDB = WhitePlayerHealthDB or {}
 
@@ -41,11 +43,15 @@ if WhitePlayerHealthDB.absorbFillDirection == nil then
     WhitePlayerHealthDB.absorbFillDirection = "RTL"
 end
 
-if WhitePlayerHealthDB.healthColor == nil then
+-- The length check (rather than a plain == nil check) also repairs
+-- saved colors written by an earlier, broken build of this addon that
+-- stored 6-digit RGB strings instead of the 8-digit ARGB format
+-- CreateColorFromHexString actually requires.
+if WhitePlayerHealthDB.healthColor == nil or #WhitePlayerHealthDB.healthColor ~= 8 then
     WhitePlayerHealthDB.healthColor = DEFAULT_HEALTH_COLOR
 end
 
-if WhitePlayerHealthDB.shieldColor == nil then
+if WhitePlayerHealthDB.shieldColor == nil or #WhitePlayerHealthDB.shieldColor ~= 8 then
     WhitePlayerHealthDB.shieldColor = DEFAULT_SHIELD_COLOR
 end
 
