@@ -830,7 +830,7 @@ WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Col
 
 do
     local function GetHealthColorSetting()
-        return WhitePlayerHealthDB.healthColor
+        return GetValidHexColor(WhitePlayerHealthDB.healthColor, DEFAULT_HEALTH_COLOR)
     end
 
     local function SetHealthColorSetting(value)
@@ -853,7 +853,7 @@ end
 
 do
     local function GetShieldColorSetting()
-        return WhitePlayerHealthDB.shieldColor
+        return GetValidHexColor(WhitePlayerHealthDB.shieldColor, DEFAULT_SHIELD_COLOR)
     end
 
     local function SetShieldColorSetting(value)
