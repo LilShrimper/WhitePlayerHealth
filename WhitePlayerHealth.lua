@@ -694,6 +694,15 @@ function WhitePlayerHealthColorPreviewMixin:OnLoad()
     -- real shield bar currently fills from.
     self.Shield = self:CreateTexture(nil, "OVERLAY")
     self.Shield:SetWidth(self.barWidth * 0.256)
+
+    -- Without this, two separately-anchored textures sharing the same
+    -- logical top/bottom coordinates can still round to different
+    -- physical pixels at some UI scales, showing up as the shield
+    -- portion sitting a pixel off from the health portion.
+    self.Health:SetSnapToPixelGrid(false)
+    self.Health:SetTexelSnappingBias(0)
+    self.Shield:SetSnapToPixelGrid(false)
+    self.Shield:SetTexelSnappingBias(0)
 end
 
 function WhitePlayerHealthColorPreviewMixin:RefreshColors()
