@@ -18,6 +18,11 @@ local DEFAULT_Y = 250
 local DEFAULT_WIDTH = 240
 local DEFAULT_HEIGHT = 5
 
+-- Also referenced by the settings registrations further down, which
+-- declare their own default alongside the saved-variable defaults here.
+local DEFAULT_FILL_DIRECTION = "RTL"
+local DEFAULT_SHOW_GUIDE = true
+
 WhitePlayerHealthDB = WhitePlayerHealthDB or {}
 
 if WhitePlayerHealthDB.width == nil then
@@ -37,7 +42,7 @@ if WhitePlayerHealthDB.y == nil then
 end
 
 if WhitePlayerHealthDB.showCenterGuide == nil then
-    WhitePlayerHealthDB.showCenterGuide = true
+    WhitePlayerHealthDB.showCenterGuide = DEFAULT_SHOW_GUIDE
 end
 
 if WhitePlayerHealthDB.editPanelX == nil then
@@ -49,7 +54,7 @@ if WhitePlayerHealthDB.editPanelY == nil then
 end
 
 if WhitePlayerHealthDB.absorbFillDirection == nil then
-    WhitePlayerHealthDB.absorbFillDirection = "RTL"
+    WhitePlayerHealthDB.absorbFillDirection = DEFAULT_FILL_DIRECTION
 end
 
 if WhitePlayerHealthDB.snapToCenter == nil then
@@ -98,10 +103,20 @@ local function GetValidHexColor(hexColor, defaultHex)
 end
 
 -- Settings-panel color preview rows (see COLOR PREVIEW below) register
--- themselves here while shown, so ApplyHealthColor/ApplyShieldColor can
--- push live updates into them as the color picker is dragged, not just
--- refresh them the next time they're shown.
+-- themselves here while shown, so the apply functions can push live
+-- updates into them as the color picker is dragged, not just refresh
+-- them the next time they're shown.
 local activeColorPreviews = {}
+
+-- Only ever called from paths where the player actually changed a
+-- color or the fill direction - deliberately not from the per-tick
+-- health/absorb updates, which would repeat this work on every combat
+-- tick for a preview that hadn't changed.
+local function RefreshColorPreviews()
+    for preview in pairs(activeColorPreviews) do
+        preview:RefreshColors()
+    end
+end
 
 --------------------------------------------------
 -- BAR
@@ -119,9 +134,7 @@ local function ApplyHealthColor()
     local hexColor = GetValidHexColor(WhitePlayerHealthDB.healthColor, DEFAULT_HEALTH_COLOR)
     bar:SetStatusBarColor(CreateColorFromHexString(hexColor):GetRGB())
 
-    for preview in pairs(activeColorPreviews) do
-        preview:RefreshColors()
-    end
+    RefreshColorPreviews()
 end
 
 ApplyHealthColor()
@@ -139,55 +152,46 @@ bg:SetColorTexture(0, 0, 0, 1)
 -- BORDER
 --------------------------------------------------
 
-local top = bar:CreateTexture(nil, "BORDER")
-local bottom = bar:CreateTexture(nil, "BORDER")
-local left = bar:CreateTexture(nil, "BORDER")
-local right = bar:CreateTexture(nil, "BORDER")
+local barBorderTop = bar:CreateTexture(nil, "BORDER")
+local barBorderBottom = bar:CreateTexture(nil, "BORDER")
+local barBorderLeft = bar:CreateTexture(nil, "BORDER")
+local barBorderRight = bar:CreateTexture(nil, "BORDER")
 
-top:SetColorTexture(0, 0, 0, 1)
-bottom:SetColorTexture(0, 0, 0, 1)
-left:SetColorTexture(0, 0, 0, 1)
-right:SetColorTexture(0, 0, 0, 1)
+barBorderTop:SetColorTexture(0, 0, 0, 1)
+barBorderBottom:SetColorTexture(0, 0, 0, 1)
+barBorderLeft:SetColorTexture(0, 0, 0, 1)
+barBorderRight:SetColorTexture(0, 0, 0, 1)
 
-local function UpdateBorder()
-    top:SetPoint("TOPLEFT", -1, 1)
-    top:SetPoint("TOPRIGHT", 1, 1)
-    top:SetHeight(1)
+-- Every anchor here is a fixed offset from one of the bar's own edges,
+-- and anchors persist across SetSize, so the border follows the bar on
+-- its own once set. Run once at load rather than from ApplySettings(),
+-- where it was re-applying identical values on every size or position
+-- change.
+barBorderTop:SetPoint("TOPLEFT", -1, 1)
+barBorderTop:SetPoint("TOPRIGHT", 1, 1)
+barBorderTop:SetHeight(1)
 
-    bottom:SetPoint("BOTTOMLEFT", -1, -1)
-    bottom:SetPoint("BOTTOMRIGHT", 1, -1)
-    bottom:SetHeight(1)
+barBorderBottom:SetPoint("BOTTOMLEFT", -1, -1)
+barBorderBottom:SetPoint("BOTTOMRIGHT", 1, -1)
+barBorderBottom:SetHeight(1)
 
-    left:SetPoint("TOPLEFT", -1, 1)
-    left:SetPoint("BOTTOMLEFT", -1, -1)
-    left:SetWidth(1)
+barBorderLeft:SetPoint("TOPLEFT", -1, 1)
+barBorderLeft:SetPoint("BOTTOMLEFT", -1, -1)
+barBorderLeft:SetWidth(1)
 
-    right:SetPoint("TOPRIGHT", 1, 1)
-    right:SetPoint("BOTTOMRIGHT", 1, -1)
-    right:SetWidth(1)
-end
+barBorderRight:SetPoint("TOPRIGHT", 1, 1)
+barBorderRight:SetPoint("BOTTOMRIGHT", 1, -1)
+barBorderRight:SetWidth(1)
 
 --------------------------------------------------
 -- APPLY SETTINGS
 --------------------------------------------------
 
 local function ApplySettings()
-    bar:SetSize(
-        WhitePlayerHealthDB.width,
-        WhitePlayerHealthDB.height
-    )
+    bar:SetSize(WhitePlayerHealthDB.width, WhitePlayerHealthDB.height)
 
     bar:ClearAllPoints()
-
-    bar:SetPoint(
-        "CENTER",
-        UIParent,
-        "CENTER",
-        WhitePlayerHealthDB.x,
-        WhitePlayerHealthDB.y
-    )
-
-    UpdateBorder()
+    bar:SetPoint("CENTER", UIParent, "CENTER", WhitePlayerHealthDB.x, WhitePlayerHealthDB.y)
 end
 
 --------------------------------------------------
@@ -256,19 +260,13 @@ local function UpdateGuideLineVisibility()
 end
 
 --------------------------------------------------
--- QUICK EDIT PANEL (Width / Height entry, edit mode only)
+-- QUICK EDIT PANEL (edit mode only)
 --------------------------------------------------
 
 local editPanel = CreateFrame("Frame", "WhitePlayerHealthEditPanel", UIParent)
 
 editPanel:SetSize(190, 208)
-editPanel:SetPoint(
-    "TOP",
-    UIParent,
-    "TOP",
-    WhitePlayerHealthDB.editPanelX,
-    WhitePlayerHealthDB.editPanelY
-)
+editPanel:SetPoint("TOP", UIParent, "TOP", WhitePlayerHealthDB.editPanelX, WhitePlayerHealthDB.editPanelY)
 editPanel:SetFrameStrata("HIGH")
 editPanel:SetMovable(true)
 editPanel:SetClampedToScreen(true)
@@ -390,7 +388,7 @@ local saveCloseButton = CreateFrame("Button", nil, editPanel, "UIPanelButtonTemp
 saveCloseButton:SetSize(130, 22)
 saveCloseButton:SetPoint("TOP", editPanel, "TOP", 0, -162)
 saveCloseButton:SetText("Save & Close")
--- OnClick is wired up further down, once ExitEditMode exists.
+-- OnClick is wired up further down, once LockBar exists.
 
 local editPanelHint = editPanel:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 editPanelHint:SetPoint("BOTTOM", editPanel, "BOTTOM", 0, 8)
@@ -671,9 +669,7 @@ local function ApplyShieldColor()
     local r, g, b = CreateColorFromHexString(hexColor):GetRGB()
     absorbBar:SetStatusBarColor(r, g, b, 0.75)
 
-    for preview in pairs(activeColorPreviews) do
-        preview:RefreshColors()
-    end
+    RefreshColorPreviews()
 end
 
 ApplyShieldColor()
@@ -682,12 +678,14 @@ ApplyShieldColor()
 -- from the right edge toward the left) or "LTR" (fills from the left
 -- edge toward the right). Reasserted on every update, defensively, in
 -- case anything ever resets the flag.
+--
+-- Deliberately does NOT refresh the settings-panel color previews:
+-- UpdateAbsorb() calls this on every health/absorb tick, so doing that
+-- here meant rebuilding the preview textures continuously through a
+-- fight. The two paths that actually change the fill direction call
+-- RefreshColorPreviews() themselves instead.
 local function ApplyAbsorbFillDirection()
     absorbBar:SetReverseFill(WhitePlayerHealthDB.absorbFillDirection ~= "LTR")
-
-    for preview in pairs(activeColorPreviews) do
-        preview:RefreshColors()
-    end
 end
 
 local function UpdateAbsorb()
@@ -739,16 +737,12 @@ local function SetUnlocked(unlocked)
 end
 
 -- isEditMode is the single source of truth for "is the bar currently
--- unlocked" - UpdateVisibility() only force-shows the bar while it's
--- true. Previously this only got set by the bare /wph toggle
--- (EnterEditMode), not by /wph unlock or the "Unlock Bar" settings
--- checkbox (both went through UnlockBar() directly) - so unlocking via
--- either of those while the bar was hidden (out of combat) left it
--- hidden but genuinely unlocked, with no indication anything had
--- changed, until something else happened to show it again (e.g.
--- entering combat), at which point it would appear already unlocked
--- with no /wph command having just been run. Setting isEditMode here
--- unconditionally makes every unlock path behave identically.
+-- unlocked", and UpdateVisibility() only force-shows the bar while
+-- it's true - so every unlock path has to set it, which is why it's
+-- set here rather than by the callers. When one path skipped it,
+-- unlocking while the bar was hidden (out of combat) left it hidden
+-- but genuinely unlocked, surfacing later when something else happened
+-- to show it and looking like the bar had unlocked itself.
 local function UnlockBar()
     isEditMode = true
 
@@ -767,17 +761,9 @@ local function LockBar()
     UpdateVisibility()
 end
 
-local function EnterEditMode()
-    UnlockBar()
-end
-
-local function ExitEditMode()
-    LockBar()
-end
-
 saveCloseButton:SetScript("OnClick", function()
     ApplyPanelValues()
-    ExitEditMode()
+    LockBar()
     print("WhitePlayerHealth: edit mode off. Position and size saved.")
 end)
 
@@ -790,6 +776,7 @@ fillDirectionButton:SetScript("OnClick", function()
 
     ApplyAbsorbFillDirection()
     RefreshEditPanelValues()
+    RefreshColorPreviews()
 end)
 
 --------------------------------------------------
@@ -876,6 +863,12 @@ end)
 -- without being in combat or edit mode, since that's the only two
 -- states the real bar is ever shown in. Global (not local) because the
 -- XML template's mixin="" attribute resolves it by name.
+
+-- Fraction of the preview bar the shield overlay covers. Tuned by eye
+-- to sit near what a real shield usually looks like on a health bar,
+-- rather than the half-and-half split it started at.
+local PREVIEW_SHIELD_FRACTION = 0.256
+
 WhitePlayerHealthColorPreviewMixin = {}
 
 function WhitePlayerHealthColorPreviewMixin:OnLoad()
@@ -902,7 +895,7 @@ function WhitePlayerHealthColorPreviewMixin:OnLoad()
     -- Anchor side is set in RefreshColors(), based on which edge the
     -- real shield bar currently fills from.
     self.Shield = self:CreateTexture(nil, "OVERLAY")
-    self.Shield:SetWidth(self.barWidth * 0.256)
+    self.Shield:SetWidth(self.barWidth * PREVIEW_SHIELD_FRACTION)
 end
 
 function WhitePlayerHealthColorPreviewMixin:RefreshColors()
@@ -964,7 +957,7 @@ do
         "WPH_Width",
         "number",
         "Bar Width",
-        240,
+        DEFAULT_WIDTH,
         GetWidthSetting,
         SetWidthSetting
     )
@@ -991,7 +984,7 @@ do
         "WPH_Height",
         "number",
         "Bar Height",
-        5,
+        DEFAULT_HEIGHT,
         GetHeightSetting,
         SetHeightSetting
     )
@@ -1040,6 +1033,8 @@ WPHSettingsLayout:AddInitializer(
         "Reset Position & Size",
         ConfirmResetPositionAndSize,
         "Restores the bar's default position, width, and height. Asks for confirmation first.",
+        -- addSearchTags: registers this button's text with the settings
+        -- search box. Required, not optional - Blizzard asserts non-nil.
         true
     )
 )
@@ -1061,7 +1056,7 @@ do
         "WPH_ShowCenterGuide",
         "boolean",
         "Show Center Guide Line",
-        true,
+        DEFAULT_SHOW_GUIDE,
         GetShowGuideSetting,
         SetShowGuideSetting
     )
@@ -1084,6 +1079,7 @@ do
         WhitePlayerHealthDB.absorbFillDirection = value
         ApplyAbsorbFillDirection()
         RefreshEditPanelValues()
+        RefreshColorPreviews()
     end
 
     local fillDirectionSetting = Settings.RegisterProxySetting(
@@ -1091,7 +1087,7 @@ do
         "WPH_AbsorbFillDirection",
         "string",
         "Shield Fill Direction",
-        "RTL",
+        DEFAULT_FILL_DIRECTION,
         GetFillDirectionSetting,
         SetFillDirectionSetting
     )
@@ -1178,6 +1174,7 @@ do
             "Set to Default Color",
             ResetColorsToDefault,
             "Restores the health bar to white and the shield overlay to blue.",
+            -- addSearchTags - see the Reset Bar button above.
             true
         )
     )
@@ -1196,20 +1193,25 @@ local function OpenConfig()
     if InCombatLockdown() then
         pendingConfigOpen = true
         print("WhitePlayerHealth: settings can't be opened during combat. Opening once you leave combat.")
-    else
-        -- Midnight requires the numeric category ID here, not the name.
-        Settings.OpenToCategory(WPHSettingsCategory:GetID())
+        return
     end
+
+    -- Midnight requires the numeric category ID here, not the name.
+    Settings.OpenToCategory(WPHSettingsCategory:GetID())
 end
 
 local configOpenFrame = CreateFrame("Frame")
 
 configOpenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
+-- Routed back through OpenConfig() rather than opening directly, so
+-- there's only one call site. Combat has ended by the time this fires,
+-- so the lockdown branch won't be taken - and if it somehow were, the
+-- request just stays queued for the next time, which is harmless.
 configOpenFrame:SetScript("OnEvent", function()
     if pendingConfigOpen then
         pendingConfigOpen = false
-        Settings.OpenToCategory(WPHSettingsCategory:GetID())
+        OpenConfig()
     end
 end)
 
@@ -1222,10 +1224,10 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
 
     if cmd == "" then
         if isEditMode then
-            ExitEditMode()
+            LockBar()
             print("WhitePlayerHealth: edit mode off. Position and size saved.")
         else
-            EnterEditMode()
+            UnlockBar()
             print("WhitePlayerHealth: edit mode on. Drag to move, drag the corner handle to resize, or type exact values in the panel. Type /wph again to finish.")
         end
     elseif cmd == "unlock" then
@@ -1329,10 +1331,5 @@ absorbFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 -- PRD's regions aren't guaranteed to exist yet the instant the world
 -- finishes loading, so this waits a couple seconds before touching them.
 absorbFrame:SetScript("OnEvent", function()
-    C_Timer.After(
-        2,
-        ApplyAbsorbSkin
-    )
+    C_Timer.After(2, ApplyAbsorbSkin)
 end)
-
-print("WhitePlayerHealth loaded")
