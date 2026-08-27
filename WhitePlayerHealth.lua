@@ -650,10 +650,22 @@ bar:SetScript("OnMouseUp", function(self)
     self:StopMovingOrSizing()
 
     if WhitePlayerHealthDB.snapToCenter then
-        local point, relativeTo, relativePoint, x, y = self:GetPoint()
+        -- SetClampedToScreen can re-anchor the frame to a different
+        -- point (e.g. "LEFT" instead of "CENTER") once a drag pushes it
+        -- against a screen edge, to keep it fully on-screen. Reusing
+        -- whatever point GetPoint() returns and just forcing its offset
+        -- to 0 - the previous approach - pins that edge to the screen
+        -- edge instead of centering the bar, since 0 means something
+        -- different for each anchor point. Explicitly re-anchoring via
+        -- CENTER (the same GetCenter()-based technique SaveSize() uses
+        -- to stay correct regardless of the frame's current anchor)
+        -- avoids that entirely.
+        local centerX, centerY = self:GetCenter()
+        local parentCenterX, parentCenterY = UIParent:GetCenter()
 
-        if x then
-            self:SetPoint(point, relativeTo, relativePoint, 0, y)
+        if centerX and centerY and parentCenterX and parentCenterY then
+            self:ClearAllPoints()
+            self:SetPoint("CENTER", UIParent, "CENTER", 0, centerY - parentCenterY)
         end
     end
 
