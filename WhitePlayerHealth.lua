@@ -468,16 +468,39 @@ bar:SetResizeBounds(20, 1, 800, 60)
 
 local resizeGrip = CreateFrame("Frame", nil, bar)
 
-resizeGrip:SetSize(10, 10)
+-- 16x16 is the size Blizzard's own PanelResizeButtonTemplate uses for
+-- this art, so it renders at its intended resolution.
+resizeGrip:SetSize(16, 16)
 resizeGrip:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
 resizeGrip:SetFrameLevel(bar:GetFrameLevel() + 2)
 resizeGrip:EnableMouse(true)
 resizeGrip:Hide()
 
+-- The diagonal-slashes grabber art the default chat frame and Edit
+-- Mode both use for their resize handles - a plain white square didn't
+-- read as "drag this to resize".
 local gripTexture = resizeGrip:CreateTexture(nil, "OVERLAY")
 
 gripTexture:SetAllPoints()
-gripTexture:SetColorTexture(1, 1, 1, 0.9)
+gripTexture:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+
+-- Brightens on hover so the grip reads as an interactive control.
+-- Toggled explicitly rather than leaning on automatic highlight
+-- behavior, since this grip is a plain Frame, not a Button.
+local gripHighlight = resizeGrip:CreateTexture(nil, "OVERLAY", nil, 1)
+
+gripHighlight:SetAllPoints()
+gripHighlight:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+gripHighlight:SetBlendMode("ADD")
+gripHighlight:Hide()
+
+resizeGrip:SetScript("OnEnter", function()
+    gripHighlight:Show()
+end)
+
+resizeGrip:SetScript("OnLeave", function()
+    gripHighlight:Hide()
+end)
 
 resizeGrip:SetScript("OnMouseDown", function(self, button)
     if button == "LeftButton" then
