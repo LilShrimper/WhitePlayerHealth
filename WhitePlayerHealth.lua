@@ -234,6 +234,11 @@ end
 
 local isEditMode = false
 
+-- Set when edit mode is asked for during combat, and honored once
+-- combat ends. Mirrors pendingConfigOpen, so /wph and /wph config
+-- behave the same way when used mid-fight.
+local pendingEditModeOpen = false
+
 --------------------------------------------------
 -- CENTER GUIDE LINE (edit mode only)
 --------------------------------------------------
@@ -743,7 +748,21 @@ end
 -- unlocking while the bar was hidden (out of combat) left it hidden
 -- but genuinely unlocked, surfacing later when something else happened
 -- to show it and looking like the bar had unlocked itself.
+-- The combat guard lives here rather than in the slash handler so it
+-- covers every way in - bare /wph, /wph unlock, and the settings
+-- panel's Unlock Bar checkbox - instead of just the one command.
+-- Callers check isEditMode afterwards to tell whether it actually
+-- opened, since a deferred request looks the same to them otherwise.
 local function UnlockBar()
+    if InCombatLockdown() then
+        if not pendingEditModeOpen then
+            pendingEditModeOpen = true
+            print("WhitePlayerHealth: edit mode can't be opened during combat. Opening once you leave combat.")
+        end
+
+        return
+    end
+
     isEditMode = true
 
     SetUnlocked(true)
@@ -752,6 +771,10 @@ end
 
 local function LockBar()
     isEditMode = false
+
+    -- An explicit lock overrides a request queued during combat, so
+    -- edit mode can't reopen later against what was just asked for.
+    pendingEditModeOpen = false
 
     SetUnlocked(false)
     widthBox:ClearFocus()
@@ -1211,13 +1234,26 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
         if isEditMode then
             LockBar()
             print("WhitePlayerHealth: edit mode off. Position and size saved.")
+        elseif pendingEditModeOpen then
+            -- Keeps /wph a real toggle during combat: a second press
+            -- takes back the queued request instead of re-queueing it.
+            pendingEditModeOpen = false
+            print("WhitePlayerHealth: edit mode request cancelled.")
         else
             UnlockBar()
-            print("WhitePlayerHealth: edit mode on. Drag to move, drag the corner handle to resize, or type exact values in the panel. Type /wph again to finish.")
+
+            -- Only announce it if it actually opened - UnlockBar()
+            -- refuses during combat and says so itself.
+            if isEditMode then
+                print("WhitePlayerHealth: edit mode on. Drag to move, drag the corner handle to resize, or type exact values in the panel. Type /wph again to finish.")
+            end
         end
     elseif cmd == "unlock" then
         UnlockBar()
-        print("WhitePlayerHealth unlocked.")
+
+        if isEditMode then
+            print("WhitePlayerHealth unlocked.")
+        end
     elseif cmd == "lock" then
         LockBar()
         print("WhitePlayerHealth locked.")
@@ -1308,11 +1344,16 @@ combatPanelFrame:SetScript("OnEvent", function(_, event)
         return
     end
 
-    -- Leaving combat. Only a /wph config issued *during* combat reopens
-    -- anything; panels closed above stay closed. Routed back through
-    -- OpenConfig() so there's a single call site - combat has ended by
-    -- now, so its lockdown branch won't be taken, and if it somehow
-    -- were, the request just stays queued for next time.
+    -- Leaving combat. Only requests made *during* combat are honored
+    -- here; panels closed above stay closed. Both route back through
+    -- their normal open functions so there's a single call site each -
+    -- combat has ended by now, so neither lockdown branch is taken, and
+    -- if one somehow were, the request just stays queued for next time.
+    if pendingEditModeOpen then
+        pendingEditModeOpen = false
+        UnlockBar()
+    end
+
     if pendingConfigOpen then
         pendingConfigOpen = false
         OpenConfig()
