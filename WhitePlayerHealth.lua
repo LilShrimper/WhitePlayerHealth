@@ -1269,12 +1269,15 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
     elseif cmd == "config" or cmd == "options" then
         OpenConfig()
     else
-        print("/wph - toggle edit mode (shows the bar, makes it movable/resizable, opens the quick-edit panel)")
-        print("/wph lock")
+        -- "#" rather than "<n>" for the numeric placeholders: angle
+        -- brackets invite typing them literally, as /wph width <30>.
+        print("WhitePlayerHealth commands:")
+        print("/wph - toggle edit mode (move, resize, quick-edit panel)")
+        print("/wph lock - close edit mode and lock the bar")
         print("/wph reset - restore default position and size")
-        print("/wph width 240")
-        print("/wph height 5")
-        print("/wph config")
+        print("/wph width # - set bar width in pixels")
+        print("/wph height # - set bar height in pixels")
+        print("/wph config - open the settings panel")
     end
 end
 
