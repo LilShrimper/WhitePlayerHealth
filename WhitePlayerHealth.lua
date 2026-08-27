@@ -641,7 +641,7 @@ bar:EnableMouse(false)
 -- drag - StartMoving() re-tracks the cursor every frame, so a SetPoint
 -- override applied mid-drag just gets overwritten by the next frame's
 -- native update and never actually shows.
-local CENTER_SNAP_DISTANCE = 15
+local CENTER_SNAP_DISTANCE = 20
 
 bar:SetScript("OnMouseDown", function(self)
     self:StartMoving()
