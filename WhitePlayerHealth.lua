@@ -476,6 +476,27 @@ resizeGrip:SetFrameLevel(bar:GetFrameLevel() + 2)
 resizeGrip:EnableMouse(true)
 resizeGrip:Hide()
 
+-- The grabber art is light-on-transparent, so on its own it washes out
+-- against a light bar or a bright world. A dark tile behind it plus a
+-- thin light outline - the same treatment the edit panel uses -
+-- guarantees the handle stands out no matter what's underneath,
+-- including the bar itself, which can now be recolored to anything.
+--
+-- The outline is one oversized texture sitting a pixel outside the
+-- backdrop on every side, rather than four separate edge textures like
+-- the bar's own border, since nothing here needs the edges controlled
+-- individually.
+local gripBorder = resizeGrip:CreateTexture(nil, "BACKGROUND", nil, -1)
+
+gripBorder:SetPoint("TOPLEFT", -1, 1)
+gripBorder:SetPoint("BOTTOMRIGHT", 1, -1)
+gripBorder:SetColorTexture(1, 1, 1, 0.9)
+
+local gripBackdrop = resizeGrip:CreateTexture(nil, "BACKGROUND")
+
+gripBackdrop:SetAllPoints()
+gripBackdrop:SetColorTexture(0, 0, 0, 0.9)
+
 -- The diagonal-slashes grabber art the default chat frame and Edit
 -- Mode both use for their resize handles - a plain white square didn't
 -- read as "drag this to resize".
