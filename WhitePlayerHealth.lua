@@ -468,59 +468,63 @@ bar:SetResizeBounds(20, 1, 800, 60)
 
 local resizeGrip = CreateFrame("Frame", nil, bar)
 
--- 16x16 is the size Blizzard's own PanelResizeButtonTemplate uses for
--- this art, so it renders at its intended resolution.
+-- Sized larger than the corner marks drawn below, so the clickable
+-- area stays comfortable to grab even though the marks themselves are
+-- deliberately small.
 resizeGrip:SetSize(16, 16)
 resizeGrip:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
 resizeGrip:SetFrameLevel(bar:GetFrameLevel() + 2)
 resizeGrip:EnableMouse(true)
 resizeGrip:Hide()
 
--- The grabber art is light-on-transparent, so on its own it washes out
--- against a light bar or a bright world. A dark tile behind it plus a
--- thin light outline - the same treatment the edit panel uses -
--- guarantees the handle stands out no matter what's underneath,
--- including the bar itself, which can now be recolored to anything.
---
--- The outline is one oversized texture sitting a pixel outside the
--- backdrop on every side, rather than four separate edge textures like
--- the bar's own border, since nothing here needs the edges controlled
--- individually.
-local gripBorder = resizeGrip:CreateTexture(nil, "BACKGROUND", nil, -1)
+-- Two thin lines hugging the bottom-right corner, like crop marks -
+-- drawn here as plain rectangles rather than using Blizzard's grabber
+-- art, both to match the 1px-line look the rest of this addon already
+-- uses and so the contrast is controlled directly. Each line carries
+-- its own dark outline, which keeps it legible over a light bar, a
+-- dark bar, or whatever's behind it in the world, without needing a
+-- heavy filled tile behind the whole grip.
+local GRIP_ARM_LENGTH = 10
+local GRIP_ARM_THICKNESS = 2
 
-gripBorder:SetPoint("TOPLEFT", -1, 1)
-gripBorder:SetPoint("BOTTOMRIGHT", 1, -1)
-gripBorder:SetColorTexture(1, 1, 1, 0.9)
+local function CreateGripArm(width, height)
+    local outline = resizeGrip:CreateTexture(nil, "OVERLAY", nil, 0)
+    outline:SetColorTexture(0, 0, 0, 0.85)
 
-local gripBackdrop = resizeGrip:CreateTexture(nil, "BACKGROUND")
+    local line = resizeGrip:CreateTexture(nil, "OVERLAY", nil, 1)
+    line:SetSize(width, height)
+    line:SetColorTexture(1, 1, 1, 1)
 
-gripBackdrop:SetAllPoints()
-gripBackdrop:SetColorTexture(0, 0, 0, 0.9)
+    -- Anchored to the line itself, so the outline follows it rather
+    -- than needing its own placement kept in sync.
+    outline:SetPoint("TOPLEFT", line, "TOPLEFT", -1, 1)
+    outline:SetPoint("BOTTOMRIGHT", line, "BOTTOMRIGHT", 1, -1)
 
--- The diagonal-slashes grabber art the default chat frame and Edit
--- Mode both use for their resize handles - a plain white square didn't
--- read as "drag this to resize".
-local gripTexture = resizeGrip:CreateTexture(nil, "OVERLAY")
+    return line
+end
 
-gripTexture:SetAllPoints()
-gripTexture:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+local gripArmHorizontal = CreateGripArm(GRIP_ARM_LENGTH, GRIP_ARM_THICKNESS)
+gripArmHorizontal:SetPoint("BOTTOMRIGHT", resizeGrip, "BOTTOMRIGHT", 0, 0)
 
--- Brightens on hover so the grip reads as an interactive control.
--- Toggled explicitly rather than leaning on automatic highlight
--- behavior, since this grip is a plain Frame, not a Button.
-local gripHighlight = resizeGrip:CreateTexture(nil, "OVERLAY", nil, 1)
+local gripArmVertical = CreateGripArm(GRIP_ARM_THICKNESS, GRIP_ARM_LENGTH)
+gripArmVertical:SetPoint("BOTTOMRIGHT", resizeGrip, "BOTTOMRIGHT", 0, 0)
 
-gripHighlight:SetAllPoints()
-gripHighlight:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
-gripHighlight:SetBlendMode("ADD")
-gripHighlight:Hide()
+-- Sits slightly dimmed until hovered, so the grip reads as an
+-- interactive control without demanding attention the rest of the time.
+-- Applied to the grip frame rather than the lines, so the lines and
+-- their outlines dim together instead of drifting apart.
+local function SetGripHighlighted(highlighted)
+    resizeGrip:SetAlpha(highlighted and 1 or 0.75)
+end
+
+SetGripHighlighted(false)
 
 resizeGrip:SetScript("OnEnter", function()
-    gripHighlight:Show()
+    SetGripHighlighted(true)
 end)
 
 resizeGrip:SetScript("OnLeave", function()
-    gripHighlight:Hide()
+    SetGripHighlighted(false)
 end)
 
 resizeGrip:SetScript("OnMouseDown", function(self, button)
