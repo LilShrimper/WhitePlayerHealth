@@ -43,6 +43,10 @@ if WhitePlayerHealthDB.absorbFillDirection == nil then
     WhitePlayerHealthDB.absorbFillDirection = "RTL"
 end
 
+if WhitePlayerHealthDB.snapToCenter == nil then
+    WhitePlayerHealthDB.snapToCenter = true
+end
+
 -- The length check (rather than a plain == nil check) also repairs
 -- saved colors written by an earlier, broken build of this addon that
 -- stored 6-digit RGB strings instead of the 8-digit ARGB format
@@ -248,7 +252,7 @@ end
 
 local editPanel = CreateFrame("Frame", "WhitePlayerHealthEditPanel", UIParent)
 
-editPanel:SetSize(190, 156)
+editPanel:SetSize(190, 182)
 editPanel:SetPoint(
     "TOP",
     UIParent,
@@ -322,6 +326,18 @@ end
 local widthBox = CreateEditPanelRow("Width", -32)
 local heightBox = CreateEditPanelRow("Height", -58)
 
+-- Toggles WhitePlayerHealthDB.snapToCenter - whether releasing a drag
+-- within CENTER_SNAP_DISTANCE of x = 0 snaps the bar to exactly
+-- centered, or leaves it free-floating wherever it was dropped. OnClick
+-- is wired up further down, once ApplySettings-adjacent state exists.
+local snapToCenterCheckbox = CreateFrame("CheckButton", nil, editPanel, "UICheckButtonTemplate")
+snapToCenterCheckbox:SetSize(24, 24)
+snapToCenterCheckbox:SetPoint("TOPLEFT", editPanel, "TOPLEFT", 8, -84)
+
+local snapToCenterLabel = editPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+snapToCenterLabel:SetPoint("LEFT", snapToCenterCheckbox, "RIGHT", 0, 1)
+snapToCenterLabel:SetText("Snap to Center")
+
 -- The classic dropdown widget (UIDropDownMenuTemplate) was removed
 -- entirely in Midnight, and there's no direct replacement for use in
 -- a plain custom frame like this panel (Settings.CreateDropdown only
@@ -331,11 +347,11 @@ local heightBox = CreateEditPanelRow("Height", -58)
 -- ApplyAbsorbFillDirection exists.
 local fillDirectionButton = CreateFrame("Button", nil, editPanel, "UIPanelButtonTemplate")
 fillDirectionButton:SetSize(160, 20)
-fillDirectionButton:SetPoint("TOP", editPanel, "TOP", 0, -84)
+fillDirectionButton:SetPoint("TOP", editPanel, "TOP", 0, -110)
 
 local saveCloseButton = CreateFrame("Button", nil, editPanel, "UIPanelButtonTemplate")
 saveCloseButton:SetSize(130, 22)
-saveCloseButton:SetPoint("TOP", editPanel, "TOP", 0, -110)
+saveCloseButton:SetPoint("TOP", editPanel, "TOP", 0, -136)
 saveCloseButton:SetText("Save & Close")
 -- OnClick is wired up further down, once ExitEditMode exists.
 
@@ -370,7 +386,12 @@ local function RefreshEditPanelValues()
     widthBox:SetText(tostring(WhitePlayerHealthDB.width))
     heightBox:SetText(tostring(WhitePlayerHealthDB.height))
     fillDirectionButton:SetText(FillDirectionLabel())
+    snapToCenterCheckbox:SetChecked(WhitePlayerHealthDB.snapToCenter)
 end
+
+snapToCenterCheckbox:SetScript("OnClick", function(self)
+    WhitePlayerHealthDB.snapToCenter = self:GetChecked() and true or false
+end)
 
 -- Reads whatever is currently typed in BOTH boxes and commits it. Used
 -- by Enter in either box, and by the Save & Close button - so clicking
@@ -614,31 +635,29 @@ end)
 bar:EnableMouse(false)
 
 -- Pixel distance from center (x = 0, the guide line) within which the
--- bar magnetically snaps to it while being dragged, so it's easy to
--- land exactly on center by hand instead of eyeballing it. Y is never
--- touched - only x snaps.
+-- bar snaps to it on release, when WhitePlayerHealthDB.snapToCenter is
+-- enabled (see the Snap to Center checkbox on the quick-edit panel).
+-- Applied once after StopMovingOrSizing() rather than live during the
+-- drag - StartMoving() re-tracks the cursor every frame, so a SetPoint
+-- override applied mid-drag just gets overwritten by the next frame's
+-- native update and never actually shows.
 local CENTER_SNAP_DISTANCE = 15
 
 bar:SetScript("OnMouseDown", function(self)
     self:StartMoving()
+end)
 
-    -- OnUpdate is deliberately scoped to just the duration of an
-    -- active drag (set here, cleared in OnMouseUp below) rather than
-    -- left running persistently - this addon otherwise avoids OnUpdate
-    -- entirely for exactly the FPS reasons that make a permanent
-    -- per-frame poll a bad idea.
-    self:SetScript("OnUpdate", function(self)
+bar:SetScript("OnMouseUp", function(self)
+    self:StopMovingOrSizing()
+
+    if WhitePlayerHealthDB.snapToCenter then
         local point, relativeTo, relativePoint, x, y = self:GetPoint()
 
         if x and math.abs(x) <= CENTER_SNAP_DISTANCE then
             self:SetPoint(point, relativeTo, relativePoint, 0, y)
         end
-    end)
-end)
+    end
 
-bar:SetScript("OnMouseUp", function(self)
-    self:SetScript("OnUpdate", nil)
-    self:StopMovingOrSizing()
     SavePosition()
 end)
 
