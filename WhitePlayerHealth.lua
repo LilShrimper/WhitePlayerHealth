@@ -482,13 +482,12 @@ resizeGrip:Hide()
 -- dark bar, or whatever's behind it in the world, without needing a
 -- heavy filled tile behind the whole grip.
 --
--- The marks scale with the bar's height so they stay proportionate
--- while it's being resized. The bounds matter more than the ratio: a
--- 1px-tall bar would otherwise leave nothing to grab, and a 60px one
--- would get marks large enough to overwhelm it. At the default 5px
--- height these land on 10x2, which is where they started.
-local GRIP_MIN_ARM_LENGTH = 10
-local GRIP_MAX_ARM_LENGTH = 28
+-- Arm length tracks the bar's height directly, so the vertical arm
+-- spans the bar rather than overhanging past it. The bounds keep a
+-- very short bar from leaving nothing to grab, and a very tall one
+-- from getting marks that overwhelm it.
+local GRIP_MIN_ARM_LENGTH = 8
+local GRIP_MAX_ARM_LENGTH = 24
 local GRIP_MIN_ARM_THICKNESS = 2
 local GRIP_MAX_ARM_THICKNESS = 4
 
@@ -527,13 +526,13 @@ local function UpdateGripSize()
     local barHeight = bar:GetHeight() or 0
 
     local armLength = ClampToRange(
-        RoundToInt(barHeight * 2),
+        RoundToInt(barHeight),
         GRIP_MIN_ARM_LENGTH,
         GRIP_MAX_ARM_LENGTH
     )
 
     local armThickness = ClampToRange(
-        RoundToInt(barHeight / 4),
+        RoundToInt(barHeight / 6),
         GRIP_MIN_ARM_THICKNESS,
         GRIP_MAX_ARM_THICKNESS
     )
