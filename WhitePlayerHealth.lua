@@ -461,9 +461,13 @@ StaticPopupDialogs["WHITEPLAYERHEALTH_RESET_CONFIRM"] = {
     hideOnEscape = true,
 }
 
-resetButton:SetScript("OnClick", function()
+-- Shared by both reset buttons - the quick-edit panel's and the
+-- settings panel's - so neither can reset without confirming first.
+local function ConfirmResetPositionAndSize()
     StaticPopup_Show("WHITEPLAYERHEALTH_RESET_CONFIRM")
-end)
+end
+
+resetButton:SetScript("OnClick", ConfirmResetPositionAndSize)
 
 -- Reads whatever is currently typed in BOTH boxes and commits it. Used
 -- by Enter in either box, and by the Save & Close button - so clicking
@@ -1034,8 +1038,8 @@ WPHSettingsLayout:AddInitializer(
     CreateSettingsButtonInitializer(
         "Reset Bar",
         "Reset Position & Size",
-        ResetPositionAndSize,
-        "Restores the bar's default position, width, and height.",
+        ConfirmResetPositionAndSize,
+        "Restores the bar's default position, width, and height. Asks for confirmation first.",
         true
     )
 )
