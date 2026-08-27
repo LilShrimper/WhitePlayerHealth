@@ -1,6 +1,6 @@
 ## Interface: 120100
 ## Title: White Player Health
-## Version: 1.4
+## Version: 1.5
 ## SavedVariables: WhitePlayerHealthDB
 
 WhitePlayerHealth.lua
