@@ -23,12 +23,14 @@ forget about.
 | Command | Effect |
 | --- | --- |
 | `/wph` | Toggle edit mode (movable, resizable, opens the quick-edit panel) |
-| `/wph unlock` | Unlock the bar without entering full edit mode |
-| `/wph lock` | Lock the bar |
-| `/wph reset` | Reset position to default |
+| `/wph lock` | Lock the bar and close edit mode |
+| `/wph reset` | Restore the default position and size |
 | `/wph width <n>` | Set bar width in pixels |
 | `/wph height <n>` | Set bar height in pixels |
 | `/wph config` | Open the settings panel |
+
+Edit mode and the settings panel can't be opened during combat. Asking for
+either mid-fight queues it, and it opens once you leave combat.
 
 ## Installation
 
