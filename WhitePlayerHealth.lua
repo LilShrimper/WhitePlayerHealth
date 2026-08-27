@@ -327,9 +327,9 @@ local widthBox = CreateEditPanelRow("Width", -32)
 local heightBox = CreateEditPanelRow("Height", -58)
 
 -- Toggles WhitePlayerHealthDB.snapToCenter - whether releasing a drag
--- within CENTER_SNAP_DISTANCE of x = 0 snaps the bar to exactly
--- centered, or leaves it free-floating wherever it was dropped. OnClick
--- is wired up further down, once ApplySettings-adjacent state exists.
+-- always snaps the bar to exactly centered (x = 0), or leaves it
+-- free-floating wherever it was dropped. OnClick is wired up further
+-- down, once ApplySettings-adjacent state exists.
 local snapToCenterCheckbox = CreateFrame("CheckButton", nil, editPanel, "UICheckButtonTemplate")
 snapToCenterCheckbox:SetSize(24, 24)
 snapToCenterCheckbox:SetPoint("TOPLEFT", editPanel, "TOPLEFT", 8, -84)
@@ -634,15 +634,14 @@ end)
 
 bar:EnableMouse(false)
 
--- Pixel distance from center (x = 0, the guide line) within which the
--- bar snaps to it on release, when WhitePlayerHealthDB.snapToCenter is
--- enabled (see the Snap to Center checkbox on the quick-edit panel).
--- Applied once after StopMovingOrSizing() rather than live during the
--- drag - StartMoving() re-tracks the cursor every frame, so a SetPoint
--- override applied mid-drag just gets overwritten by the next frame's
--- native update and never actually shows.
-local CENTER_SNAP_DISTANCE = 20
-
+-- When WhitePlayerHealthDB.snapToCenter is enabled (see the Snap to
+-- Center checkbox on the quick-edit panel), every release forces x
+-- back to 0 (the guide line) regardless of how far off it was
+-- dropped - there's no proximity window. Applied once after
+-- StopMovingOrSizing() rather than live during the drag - StartMoving()
+-- re-tracks the cursor every frame, so a SetPoint override applied
+-- mid-drag just gets overwritten by the next frame's native update and
+-- never actually shows.
 bar:SetScript("OnMouseDown", function(self)
     self:StartMoving()
 end)
@@ -653,7 +652,7 @@ bar:SetScript("OnMouseUp", function(self)
     if WhitePlayerHealthDB.snapToCenter then
         local point, relativeTo, relativePoint, x, y = self:GetPoint()
 
-        if x and math.abs(x) <= CENTER_SNAP_DISTANCE then
+        if x then
             self:SetPoint(point, relativeTo, relativePoint, 0, y)
         end
     end
