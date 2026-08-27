@@ -553,8 +553,22 @@ local function SetUnlocked(unlocked)
     UpdateGuideLineVisibility()
 end
 
+-- isEditMode is the single source of truth for "is the bar currently
+-- unlocked" - UpdateVisibility() only force-shows the bar while it's
+-- true. Previously this only got set by the bare /wph toggle
+-- (EnterEditMode), not by /wph unlock or the "Unlock Bar" settings
+-- checkbox (both went through UnlockBar() directly) - so unlocking via
+-- either of those while the bar was hidden (out of combat) left it
+-- hidden but genuinely unlocked, with no indication anything had
+-- changed, until something else happened to show it again (e.g.
+-- entering combat), at which point it would appear already unlocked
+-- with no /wph command having just been run. Setting isEditMode here
+-- unconditionally makes every unlock path behave identically.
 local function UnlockBar()
+    isEditMode = true
+
     SetUnlocked(true)
+    bar:Show()
 end
 
 local function LockBar()
@@ -569,10 +583,7 @@ local function LockBar()
 end
 
 local function EnterEditMode()
-    isEditMode = true
-
     UnlockBar()
-    bar:Show()
 end
 
 local function ExitEditMode()
@@ -602,11 +613,31 @@ end)
 
 bar:EnableMouse(false)
 
+-- Pixel distance from center (x = 0, the guide line) within which the
+-- bar magnetically snaps to it while being dragged, so it's easy to
+-- land exactly on center by hand instead of eyeballing it. Y is never
+-- touched - only x snaps.
+local CENTER_SNAP_DISTANCE = 15
+
 bar:SetScript("OnMouseDown", function(self)
     self:StartMoving()
+
+    -- OnUpdate is deliberately scoped to just the duration of an
+    -- active drag (set here, cleared in OnMouseUp below) rather than
+    -- left running persistently - this addon otherwise avoids OnUpdate
+    -- entirely for exactly the FPS reasons that make a permanent
+    -- per-frame poll a bad idea.
+    self:SetScript("OnUpdate", function(self)
+        local point, relativeTo, relativePoint, x, y = self:GetPoint()
+
+        if x and math.abs(x) <= CENTER_SNAP_DISTANCE then
+            self:SetPoint(point, relativeTo, relativePoint, 0, y)
+        end
+    end)
 end)
 
 bar:SetScript("OnMouseUp", function(self)
+    self:SetScript("OnUpdate", nil)
     self:StopMovingOrSizing()
     SavePosition()
 end)
