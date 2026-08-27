@@ -468,16 +468,104 @@ bar:SetResizeBounds(20, 1, 800, 60)
 
 local resizeGrip = CreateFrame("Frame", nil, bar)
 
-resizeGrip:SetSize(10, 10)
+-- Size is set by UpdateGripSize() below, which scales it with the bar.
 resizeGrip:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", 0, 0)
 resizeGrip:SetFrameLevel(bar:GetFrameLevel() + 2)
 resizeGrip:EnableMouse(true)
 resizeGrip:Hide()
 
-local gripTexture = resizeGrip:CreateTexture(nil, "OVERLAY")
+-- Two thin lines hugging the bottom-right corner, like crop marks -
+-- drawn here as plain rectangles rather than using Blizzard's grabber
+-- art, both to match the 1px-line look the rest of this addon already
+-- uses and so the contrast is controlled directly. Each line carries
+-- its own dark outline, which keeps it legible over a light bar, a
+-- dark bar, or whatever's behind it in the world, without needing a
+-- heavy filled tile behind the whole grip.
+--
+-- Arm length tracks the bar's height directly, so the vertical arm
+-- spans the bar rather than overhanging past it. The bounds keep a
+-- very short bar from leaving nothing to grab, and a very tall one
+-- from getting marks that overwhelm it.
+local GRIP_MIN_ARM_LENGTH = 8
+local GRIP_MAX_ARM_LENGTH = 24
+local GRIP_MIN_ARM_THICKNESS = 2
+local GRIP_MAX_ARM_THICKNESS = 4
 
-gripTexture:SetAllPoints()
-gripTexture:SetColorTexture(1, 1, 1, 0.9)
+-- Clickable margin around the marks, so the grab target stays
+-- comfortable even at the smallest mark size.
+local GRIP_PADDING = 6
+
+local function CreateGripArm()
+    local outline = resizeGrip:CreateTexture(nil, "OVERLAY", nil, 0)
+    outline:SetColorTexture(0, 0, 0, 0.85)
+
+    local line = resizeGrip:CreateTexture(nil, "OVERLAY", nil, 1)
+    line:SetColorTexture(1, 1, 1, 1)
+
+    -- Anchored to the line itself, so the outline follows it rather
+    -- than needing its own placement kept in sync.
+    outline:SetPoint("TOPLEFT", line, "TOPLEFT", -1, 1)
+    outline:SetPoint("BOTTOMRIGHT", line, "BOTTOMRIGHT", 1, -1)
+
+    return line
+end
+
+-- Sizes come from UpdateGripSize() below, not from creation.
+local gripArmHorizontal = CreateGripArm()
+gripArmHorizontal:SetPoint("BOTTOMRIGHT", resizeGrip, "BOTTOMRIGHT", 0, 0)
+
+local gripArmVertical = CreateGripArm()
+gripArmVertical:SetPoint("BOTTOMRIGHT", resizeGrip, "BOTTOMRIGHT", 0, 0)
+
+-- Named to avoid shadowing Blizzard's own global Clamp().
+local function ClampToRange(value, minValue, maxValue)
+    return math.max(minValue, math.min(maxValue, value))
+end
+
+local function UpdateGripSize()
+    local barHeight = bar:GetHeight() or 0
+
+    local armLength = ClampToRange(
+        RoundToInt(barHeight),
+        GRIP_MIN_ARM_LENGTH,
+        GRIP_MAX_ARM_LENGTH
+    )
+
+    local armThickness = ClampToRange(
+        RoundToInt(barHeight / 6),
+        GRIP_MIN_ARM_THICKNESS,
+        GRIP_MAX_ARM_THICKNESS
+    )
+
+    gripArmHorizontal:SetSize(armLength, armThickness)
+    gripArmVertical:SetSize(armThickness, armLength)
+    resizeGrip:SetSize(armLength + GRIP_PADDING, armLength + GRIP_PADDING)
+end
+
+-- OnSizeChanged fires continuously while a native resize drag is in
+-- progress, so the marks track the bar live without any polling - the
+-- OnUpdate-free approach the rest of this addon sticks to.
+bar:SetScript("OnSizeChanged", UpdateGripSize)
+
+UpdateGripSize()
+
+-- Sits slightly dimmed until hovered, so the grip reads as an
+-- interactive control without demanding attention the rest of the time.
+-- Applied to the grip frame rather than the lines, so the lines and
+-- their outlines dim together instead of drifting apart.
+local function SetGripHighlighted(highlighted)
+    resizeGrip:SetAlpha(highlighted and 1 or 0.75)
+end
+
+SetGripHighlighted(false)
+
+resizeGrip:SetScript("OnEnter", function()
+    SetGripHighlighted(true)
+end)
+
+resizeGrip:SetScript("OnLeave", function()
+    SetGripHighlighted(false)
+end)
 
 resizeGrip:SetScript("OnMouseDown", function(self, button)
     if button == "LeftButton" then
