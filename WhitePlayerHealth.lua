@@ -43,6 +43,10 @@ if WhitePlayerHealthDB.absorbFillDirection == nil then
     WhitePlayerHealthDB.absorbFillDirection = "RTL"
 end
 
+if WhitePlayerHealthDB.snapToCenter == nil then
+    WhitePlayerHealthDB.snapToCenter = true
+end
+
 -- The length check (rather than a plain == nil check) also repairs
 -- saved colors written by an earlier, broken build of this addon that
 -- stored 6-digit RGB strings instead of the 8-digit ARGB format
@@ -248,7 +252,7 @@ end
 
 local editPanel = CreateFrame("Frame", "WhitePlayerHealthEditPanel", UIParent)
 
-editPanel:SetSize(190, 156)
+editPanel:SetSize(190, 182)
 editPanel:SetPoint(
     "TOP",
     UIParent,
@@ -322,6 +326,18 @@ end
 local widthBox = CreateEditPanelRow("Width", -32)
 local heightBox = CreateEditPanelRow("Height", -58)
 
+-- Toggles WhitePlayerHealthDB.snapToCenter - whether releasing a drag
+-- always snaps the bar to exactly centered (x = 0), or leaves it
+-- free-floating wherever it was dropped. OnClick is wired up further
+-- down, once ApplySettings-adjacent state exists.
+local snapToCenterCheckbox = CreateFrame("CheckButton", nil, editPanel, "UICheckButtonTemplate")
+snapToCenterCheckbox:SetSize(24, 24)
+snapToCenterCheckbox:SetPoint("TOPLEFT", editPanel, "TOPLEFT", 8, -84)
+
+local snapToCenterLabel = editPanel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+snapToCenterLabel:SetPoint("LEFT", snapToCenterCheckbox, "RIGHT", 0, 1)
+snapToCenterLabel:SetText("Snap to Center")
+
 -- The classic dropdown widget (UIDropDownMenuTemplate) was removed
 -- entirely in Midnight, and there's no direct replacement for use in
 -- a plain custom frame like this panel (Settings.CreateDropdown only
@@ -331,11 +347,11 @@ local heightBox = CreateEditPanelRow("Height", -58)
 -- ApplyAbsorbFillDirection exists.
 local fillDirectionButton = CreateFrame("Button", nil, editPanel, "UIPanelButtonTemplate")
 fillDirectionButton:SetSize(160, 20)
-fillDirectionButton:SetPoint("TOP", editPanel, "TOP", 0, -84)
+fillDirectionButton:SetPoint("TOP", editPanel, "TOP", 0, -110)
 
 local saveCloseButton = CreateFrame("Button", nil, editPanel, "UIPanelButtonTemplate")
 saveCloseButton:SetSize(130, 22)
-saveCloseButton:SetPoint("TOP", editPanel, "TOP", 0, -110)
+saveCloseButton:SetPoint("TOP", editPanel, "TOP", 0, -136)
 saveCloseButton:SetText("Save & Close")
 -- OnClick is wired up further down, once ExitEditMode exists.
 
@@ -370,7 +386,12 @@ local function RefreshEditPanelValues()
     widthBox:SetText(tostring(WhitePlayerHealthDB.width))
     heightBox:SetText(tostring(WhitePlayerHealthDB.height))
     fillDirectionButton:SetText(FillDirectionLabel())
+    snapToCenterCheckbox:SetChecked(WhitePlayerHealthDB.snapToCenter)
 end
+
+snapToCenterCheckbox:SetScript("OnClick", function(self)
+    WhitePlayerHealthDB.snapToCenter = self:GetChecked() and true or false
+end)
 
 -- Reads whatever is currently typed in BOTH boxes and commits it. Used
 -- by Enter in either box, and by the Save & Close button - so clicking
@@ -553,8 +574,22 @@ local function SetUnlocked(unlocked)
     UpdateGuideLineVisibility()
 end
 
+-- isEditMode is the single source of truth for "is the bar currently
+-- unlocked" - UpdateVisibility() only force-shows the bar while it's
+-- true. Previously this only got set by the bare /wph toggle
+-- (EnterEditMode), not by /wph unlock or the "Unlock Bar" settings
+-- checkbox (both went through UnlockBar() directly) - so unlocking via
+-- either of those while the bar was hidden (out of combat) left it
+-- hidden but genuinely unlocked, with no indication anything had
+-- changed, until something else happened to show it again (e.g.
+-- entering combat), at which point it would appear already unlocked
+-- with no /wph command having just been run. Setting isEditMode here
+-- unconditionally makes every unlock path behave identically.
 local function UnlockBar()
+    isEditMode = true
+
     SetUnlocked(true)
+    bar:Show()
 end
 
 local function LockBar()
@@ -569,10 +604,7 @@ local function LockBar()
 end
 
 local function EnterEditMode()
-    isEditMode = true
-
     UnlockBar()
-    bar:Show()
 end
 
 local function ExitEditMode()
@@ -602,12 +634,29 @@ end)
 
 bar:EnableMouse(false)
 
+-- When WhitePlayerHealthDB.snapToCenter is enabled (see the Snap to
+-- Center checkbox on the quick-edit panel), every release forces x
+-- back to 0 (the guide line) regardless of how far off it was
+-- dropped - there's no proximity window. Applied once after
+-- StopMovingOrSizing() rather than live during the drag - StartMoving()
+-- re-tracks the cursor every frame, so a SetPoint override applied
+-- mid-drag just gets overwritten by the next frame's native update and
+-- never actually shows.
 bar:SetScript("OnMouseDown", function(self)
     self:StartMoving()
 end)
 
 bar:SetScript("OnMouseUp", function(self)
     self:StopMovingOrSizing()
+
+    if WhitePlayerHealthDB.snapToCenter then
+        local point, relativeTo, relativePoint, x, y = self:GetPoint()
+
+        if x then
+            self:SetPoint(point, relativeTo, relativePoint, 0, y)
+        end
+    end
+
     SavePosition()
 end)
 
