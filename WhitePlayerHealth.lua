@@ -326,10 +326,28 @@ end
 local widthBox = CreateEditPanelRow("Width", -32)
 local heightBox = CreateEditPanelRow("Height", -58)
 
+-- Re-anchors the bar to exactly centered (x = 0), regardless of what
+-- anchor point SetClampedToScreen may have left it on - GetCenter() is
+-- used rather than GetPoint()/SetPoint() with the existing point,
+-- since a drag pushed against a screen edge can leave the bar anchored
+-- from a different point (e.g. "LEFT" instead of "CENTER"), and forcing
+-- that offset to 0 would pin the edge to the screen edge instead of
+-- centering the bar.
+local function SnapBarToCenter()
+    local centerX, centerY = bar:GetCenter()
+    local parentCenterX, parentCenterY = UIParent:GetCenter()
+
+    if centerX and centerY and parentCenterX and parentCenterY then
+        bar:ClearAllPoints()
+        bar:SetPoint("CENTER", UIParent, "CENTER", 0, centerY - parentCenterY)
+    end
+end
+
 -- Toggles WhitePlayerHealthDB.snapToCenter - whether releasing a drag
 -- always snaps the bar to exactly centered (x = 0), or leaves it
--- free-floating wherever it was dropped. OnClick is wired up further
--- down, once ApplySettings-adjacent state exists.
+-- free-floating wherever it was dropped. Checking the box also snaps
+-- immediately, rather than waiting for the next drag. OnClick is wired
+-- up further down, once ApplySettings-adjacent state exists.
 local snapToCenterCheckbox = CreateFrame("CheckButton", nil, editPanel, "UICheckButtonTemplate")
 snapToCenterCheckbox:SetSize(24, 24)
 snapToCenterCheckbox:SetPoint("TOPLEFT", editPanel, "TOPLEFT", 8, -84)
@@ -391,6 +409,11 @@ end
 
 snapToCenterCheckbox:SetScript("OnClick", function(self)
     WhitePlayerHealthDB.snapToCenter = self:GetChecked() and true or false
+
+    if WhitePlayerHealthDB.snapToCenter then
+        SnapBarToCenter()
+        SavePosition()
+    end
 end)
 
 -- Reads whatever is currently typed in BOTH boxes and commits it. Used
@@ -650,23 +673,7 @@ bar:SetScript("OnMouseUp", function(self)
     self:StopMovingOrSizing()
 
     if WhitePlayerHealthDB.snapToCenter then
-        -- SetClampedToScreen can re-anchor the frame to a different
-        -- point (e.g. "LEFT" instead of "CENTER") once a drag pushes it
-        -- against a screen edge, to keep it fully on-screen. Reusing
-        -- whatever point GetPoint() returns and just forcing its offset
-        -- to 0 - the previous approach - pins that edge to the screen
-        -- edge instead of centering the bar, since 0 means something
-        -- different for each anchor point. Explicitly re-anchoring via
-        -- CENTER (the same GetCenter()-based technique SaveSize() uses
-        -- to stay correct regardless of the frame's current anchor)
-        -- avoids that entirely.
-        local centerX, centerY = self:GetCenter()
-        local parentCenterX, parentCenterY = UIParent:GetCenter()
-
-        if centerX and centerY and parentCenterX and parentCenterY then
-            self:ClearAllPoints()
-            self:SetPoint("CENTER", UIParent, "CENTER", 0, centerY - parentCenterY)
-        end
+        SnapBarToCenter()
     end
 
     SavePosition()
