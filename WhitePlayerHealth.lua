@@ -1200,21 +1200,6 @@ local function OpenConfig()
     Settings.OpenToCategory(WPHSettingsCategory:GetID())
 end
 
-local configOpenFrame = CreateFrame("Frame")
-
-configOpenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-
--- Routed back through OpenConfig() rather than opening directly, so
--- there's only one call site. Combat has ended by the time this fires,
--- so the lockdown branch won't be taken - and if it somehow were, the
--- request just stays queued for the next time, which is harmless.
-configOpenFrame:SetScript("OnEvent", function()
-    if pendingConfigOpen then
-        pendingConfigOpen = false
-        OpenConfig()
-    end
-end)
-
 SLASH_WHITEPLAYERHEALTH1 = "/wph"
 
 SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
@@ -1266,6 +1251,73 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
         print("/wph config")
     end
 end
+
+--------------------------------------------------
+-- PANELS IN COMBAT
+--------------------------------------------------
+
+-- Only true while the settings panel is actually showing this addon's
+-- own category. Sitting in Graphics or Keybindings when combat starts
+-- is none of this addon's business, so that's left alone.
+local function IsOurSettingsCategoryShown()
+    if not SettingsPanel or not SettingsPanel:IsShown() then
+        return false
+    end
+
+    return SettingsPanel:GetCurrentCategory() == WPHSettingsCategory
+end
+
+-- Gets this addon's panels out of the way when a fight starts. Nothing
+-- reopens afterwards - they stay closed until asked for again, which is
+-- why the message says so rather than promising a reopen.
+--
+-- The settings panel is hidden directly rather than through
+-- SettingsPanel:Close(). Close() routes into HideUIPanel(), which goes
+-- through WoW's secure panel manager and can be blocked when called
+-- from addon code during combat lockdown - and this runs on
+-- PLAYER_REGEN_DISABLED, when lockdown is already in effect. Close()
+-- also raises a "discard changes?" dialog whenever any setting has
+-- unapplied changes, which would be an unwelcome popup at the start of
+-- a fight. Hide() avoids both.
+local function CloseOurPanelsForCombat()
+    local closedAnything = false
+
+    if isEditMode then
+        LockBar()
+        closedAnything = true
+    end
+
+    if IsOurSettingsCategoryShown() then
+        SettingsPanel:Hide()
+        closedAnything = true
+    end
+
+    if closedAnything then
+        print("WhitePlayerHealth: closed for combat - reopen with /wph or /wph config.")
+    end
+end
+
+local combatPanelFrame = CreateFrame("Frame")
+
+combatPanelFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+combatPanelFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+
+combatPanelFrame:SetScript("OnEvent", function(_, event)
+    if event == "PLAYER_REGEN_DISABLED" then
+        CloseOurPanelsForCombat()
+        return
+    end
+
+    -- Leaving combat. Only a /wph config issued *during* combat reopens
+    -- anything; panels closed above stay closed. Routed back through
+    -- OpenConfig() so there's a single call site - combat has ended by
+    -- now, so its lockdown branch won't be taken, and if it somehow
+    -- were, the request just stays queued for next time.
+    if pendingConfigOpen then
+        pendingConfigOpen = false
+        OpenConfig()
+    end
+end)
 
 --------------------------------------------------
 -- STARTUP
