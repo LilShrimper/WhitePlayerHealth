@@ -9,22 +9,31 @@
 local DEFAULT_HEALTH_COLOR = "FFFFFFFF"
 local DEFAULT_SHIELD_COLOR = "FF0099FF"
 
+-- Position is relative to the screen's center, so y = 250 puts the bar
+-- roughly above a standing character's head at default UI scale.
+-- Kept as constants because several separate paths reset back to them -
+-- the settings panel, the quick-edit panel, and /wph reset.
+local DEFAULT_X = 0
+local DEFAULT_Y = 250
+local DEFAULT_WIDTH = 240
+local DEFAULT_HEIGHT = 5
+
 WhitePlayerHealthDB = WhitePlayerHealthDB or {}
 
 if WhitePlayerHealthDB.width == nil then
-    WhitePlayerHealthDB.width = 240
+    WhitePlayerHealthDB.width = DEFAULT_WIDTH
 end
 
 if WhitePlayerHealthDB.height == nil then
-    WhitePlayerHealthDB.height = 5
+    WhitePlayerHealthDB.height = DEFAULT_HEIGHT
 end
 
 if WhitePlayerHealthDB.x == nil then
-    WhitePlayerHealthDB.x = 0
+    WhitePlayerHealthDB.x = DEFAULT_X
 end
 
 if WhitePlayerHealthDB.y == nil then
-    WhitePlayerHealthDB.y = 250
+    WhitePlayerHealthDB.y = DEFAULT_Y
 end
 
 if WhitePlayerHealthDB.showCenterGuide == nil then
@@ -252,7 +261,7 @@ end
 
 local editPanel = CreateFrame("Frame", "WhitePlayerHealthEditPanel", UIParent)
 
-editPanel:SetSize(190, 182)
+editPanel:SetSize(190, 208)
 editPanel:SetPoint(
     "TOP",
     UIParent,
@@ -367,9 +376,19 @@ local fillDirectionButton = CreateFrame("Button", nil, editPanel, "UIPanelButton
 fillDirectionButton:SetSize(160, 20)
 fillDirectionButton:SetPoint("TOP", editPanel, "TOP", 0, -110)
 
+-- Escape hatch for when the bar ends up somewhere unusable - dragged
+-- off behind another frame, or resized down to something too small to
+-- grab. Confirms first, since it discards the current position and
+-- size. OnClick is wired up further down, once the reset itself and
+-- its confirmation dialog exist.
+local resetButton = CreateFrame("Button", nil, editPanel, "UIPanelButtonTemplate")
+resetButton:SetSize(130, 22)
+resetButton:SetPoint("TOP", editPanel, "TOP", 0, -136)
+resetButton:SetText("Reset to Default")
+
 local saveCloseButton = CreateFrame("Button", nil, editPanel, "UIPanelButtonTemplate")
 saveCloseButton:SetSize(130, 22)
-saveCloseButton:SetPoint("TOP", editPanel, "TOP", 0, -136)
+saveCloseButton:SetPoint("TOP", editPanel, "TOP", 0, -162)
 saveCloseButton:SetText("Save & Close")
 -- OnClick is wired up further down, once ExitEditMode exists.
 
@@ -414,6 +433,36 @@ snapToCenterCheckbox:SetScript("OnClick", function(self)
         SnapBarToCenter()
         SavePosition()
     end
+end)
+
+-- Shared by the quick-edit panel's Reset to Default button and the
+-- settings panel's Reset Position & Size button, so the two can't
+-- drift apart.
+local function ResetPositionAndSize()
+    WhitePlayerHealthDB.x = DEFAULT_X
+    WhitePlayerHealthDB.y = DEFAULT_Y
+    WhitePlayerHealthDB.width = DEFAULT_WIDTH
+    WhitePlayerHealthDB.height = DEFAULT_HEIGHT
+
+    ApplySettings()
+    RefreshEditPanelValues()
+end
+
+StaticPopupDialogs["WHITEPLAYERHEALTH_RESET_CONFIRM"] = {
+    text = "This will reset the bar's position and size to default settings.",
+    button1 = "Confirm",
+    button2 = "Exit",
+    OnAccept = function()
+        ResetPositionAndSize()
+        print("WhitePlayerHealth: position and size reset to defaults.")
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+}
+
+resetButton:SetScript("OnClick", function()
+    StaticPopup_Show("WHITEPLAYERHEALTH_RESET_CONFIRM")
 end)
 
 -- Reads whatever is currently typed in BOTH boxes and commits it. Used
@@ -981,26 +1030,15 @@ do
     )
 end
 
-do
-    local function ResetBarPositionAndSize()
-        WhitePlayerHealthDB.x = 0
-        WhitePlayerHealthDB.y = 250
-        WhitePlayerHealthDB.width = 240
-        WhitePlayerHealthDB.height = 5
-        ApplySettings()
-        RefreshEditPanelValues()
-    end
-
-    WPHSettingsLayout:AddInitializer(
-        CreateSettingsButtonInitializer(
-            "Reset Bar",
-            "Reset Position & Size",
-            ResetBarPositionAndSize,
-            "Restores the bar's default position, width, and height.",
-            true
-        )
+WPHSettingsLayout:AddInitializer(
+    CreateSettingsButtonInitializer(
+        "Reset Bar",
+        "Reset Position & Size",
+        ResetPositionAndSize,
+        "Restores the bar's default position, width, and height.",
+        true
     )
-end
+)
 
 WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Edit Mode Helpers"))
 
@@ -1193,8 +1231,10 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
         LockBar()
         print("WhitePlayerHealth locked.")
     elseif cmd == "reset" then
-        WhitePlayerHealthDB.x = 0
-        WhitePlayerHealthDB.y = 250
+        -- Deliberately position-only, unlike the panel buttons, which
+        -- also restore the default size.
+        WhitePlayerHealthDB.x = DEFAULT_X
+        WhitePlayerHealthDB.y = DEFAULT_Y
 
         ApplySettings()
         RefreshEditPanelValues()
