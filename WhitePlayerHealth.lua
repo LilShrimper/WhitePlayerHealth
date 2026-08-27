@@ -749,10 +749,10 @@ end
 -- but genuinely unlocked, surfacing later when something else happened
 -- to show it and looking like the bar had unlocked itself.
 -- The combat guard lives here rather than in the slash handler so it
--- covers every way in - bare /wph, /wph unlock, and the settings
--- panel's Unlock Bar checkbox - instead of just the one command.
--- Callers check isEditMode afterwards to tell whether it actually
--- opened, since a deferred request looks the same to them otherwise.
+-- covers both ways in - /wph and the settings panel's Unlock Bar
+-- checkbox - instead of just the command. Callers check isEditMode
+-- afterwards to tell whether it actually opened, since a deferred
+-- request looks the same to them otherwise.
 local function UnlockBar()
     if InCombatLockdown() then
         if not pendingEditModeOpen then
@@ -1248,25 +1248,16 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
                 print("WhitePlayerHealth: edit mode on. Drag to move, drag the corner handle to resize, or type exact values in the panel. Type /wph again to finish.")
             end
         end
-    elseif cmd == "unlock" then
-        UnlockBar()
-
-        if isEditMode then
-            print("WhitePlayerHealth unlocked.")
-        end
     elseif cmd == "lock" then
         LockBar()
         print("WhitePlayerHealth locked.")
     elseif cmd == "reset" then
-        -- Deliberately position-only, unlike the panel buttons, which
-        -- also restore the default size.
-        WhitePlayerHealthDB.x = DEFAULT_X
-        WhitePlayerHealthDB.y = DEFAULT_Y
-
-        ApplySettings()
-        RefreshEditPanelValues()
-
-        print("WhitePlayerHealth reset.")
+        -- Same scope as the panel buttons, so "reset" means one thing
+        -- everywhere - but with no confirmation dialog, since typing
+        -- the command is already deliberate in a way that clicking a
+        -- button next to Save & Close isn't.
+        ResetPositionAndSize()
+        print("WhitePlayerHealth: position and size reset to defaults.")
     elseif cmd == "width" and value then
         WhitePlayerHealthDB.width = value
         ApplySettings()
@@ -1278,13 +1269,15 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
     elseif cmd == "config" or cmd == "options" then
         OpenConfig()
     else
-        print("/wph - toggle edit mode (shows the bar, makes it movable/resizable, opens the quick-edit panel)")
-        print("/wph unlock")
-        print("/wph lock")
-        print("/wph reset")
-        print("/wph width 240")
-        print("/wph height 5")
-        print("/wph config")
+        -- "#" rather than "<n>" for the numeric placeholders: angle
+        -- brackets invite typing them literally, as /wph width <30>.
+        print("WhitePlayerHealth commands:")
+        print("/wph - toggle edit mode (move, resize, quick-edit panel)")
+        print("/wph lock - close edit mode and lock the bar")
+        print("/wph reset - restore default position and size")
+        print("/wph width # - set bar width in pixels")
+        print("/wph height # - set bar height in pixels")
+        print("/wph config - open the settings panel")
     end
 end
 
