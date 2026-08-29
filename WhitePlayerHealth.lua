@@ -741,6 +741,32 @@ local function SetUnlocked(unlocked)
     UpdateGuideLineVisibility()
 end
 
+-- The bar is a globally named frame, so anything else loaded can call
+-- WhitePlayerHealthBar:EnableMouse(true) and make it draggable without
+-- a single line of this addon running - which looks exactly like the
+-- bar unlocking itself.
+--
+-- Every unlock of ours sets isEditMode before enabling the mouse (see
+-- UnlockBar), so an enable arriving while isEditMode is false did not
+-- come from here. debugstack names the file that called it, which is
+-- usually enough to identify the addon responsible.
+--
+-- Reported once per session: whatever is doing this could be calling
+-- from an OnUpdate, and 60 stack traces a second would bury the chat
+-- frame rather than help. The first one identifies the culprit anyway.
+local reportedExternalUnlock = false
+
+hooksecurefunc(bar, "EnableMouse", function(_, enabled)
+    if not enabled or isEditMode or reportedExternalUnlock then
+        return
+    end
+
+    reportedExternalUnlock = true
+
+    print("WhitePlayerHealth: something outside this addon unlocked the bar. Call stack:")
+    print(debugstack(2, 4, 0))
+end)
+
 -- isEditMode is the single source of truth for "is the bar currently
 -- unlocked", and UpdateVisibility() only force-shows the bar while
 -- it's true - so every unlock path has to set it, which is why it's
@@ -850,6 +876,13 @@ events:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 events:SetScript("OnEvent", function(_, event, unit)
     if event == "PLAYER_ENTERING_WORLD" then
+        -- Lock state is never saved, so this is already the state after
+        -- a fresh load - asserted explicitly anyway so the bar is
+        -- guaranteed locked on every login and zone change, whatever
+        -- may have touched it beforehand.
+        isEditMode = false
+        SetUnlocked(false)
+
         ApplySettings()
         UpdateHealth()
         UpdateAbsorb()
