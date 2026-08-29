@@ -780,10 +780,9 @@ end)
 -- but genuinely unlocked, surfacing later when something else happened
 -- to show it and looking like the bar had unlocked itself.
 -- The combat guard lives here rather than in the slash handler so it
--- covers both ways in - /wph and the settings panel's Unlock Bar
--- checkbox - instead of just the command. Callers check isEditMode
--- afterwards to tell whether it actually opened, since a deferred
--- request looks the same to them otherwise.
+-- covers the deferred combat-end open as well as /wph itself. Callers
+-- check isEditMode afterwards to tell whether it actually opened, since
+-- a deferred request looks the same to them otherwise.
 local function UnlockBar()
     if InCombatLockdown() then
         if not pendingEditModeOpen then
@@ -1066,37 +1065,14 @@ do
     Settings.CreateSlider(WPHSettingsCategory, heightSetting, heightOptions, "Height of the health bar, in pixels.")
 end
 
-WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Position & Locking"))
+WPHSettingsLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Position"))
 
-do
-    local function GetUnlockedSetting()
-        return bar:IsMouseEnabled()
-    end
-
-    local function SetUnlockedSetting(value)
-        if value then
-            UnlockBar()
-        else
-            LockBar()
-        end
-    end
-
-    local unlockedSetting = Settings.RegisterProxySetting(
-        WPHSettingsCategory,
-        "WPH_Unlocked",
-        "boolean",
-        "Unlock Bar",
-        false,
-        GetUnlockedSetting,
-        SetUnlockedSetting
-    )
-
-    Settings.CreateCheckbox(
-        WPHSettingsCategory,
-        unlockedSetting,
-        "Allow the bar to be dragged to move it, and resized using the handle in its bottom-right corner."
-    )
-end
+-- Replaces an Unlock Bar checkbox that duplicated /wph while being the
+-- worse way in: it left the panel showing a stale checked state after
+-- /wph or a combat auto-lock changed things behind it, and it was a
+-- second entry point into edit mode that had to be reasoned about
+-- separately every time the locking logic changed.
+WPHSettingsLayout:AddInitializer(Settings.CreatePanelInitializer("WhitePlayerHealthSettingsNoteTemplate", {}))
 
 WPHSettingsLayout:AddInitializer(
     CreateSettingsButtonInitializer(

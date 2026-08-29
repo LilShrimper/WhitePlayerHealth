@@ -16,4 +16,24 @@
             <OnHide method="OnHide"/>
         </Scripts>
     </Frame>
+
+    <!--
+        A plain note row. Blizzard's only text-accepting settings helper is
+        CreateSettingsListSectionHeaderInitializer, which renders as a bold
+        section title - wrong weight for a hint sitting under one. The text is
+        fixed, so this needs no mixin.
+    -->
+    <Frame name="WhitePlayerHealthSettingsNoteTemplate" virtual="true">
+        <Size y="24"/>
+        <Layers>
+            <Layer level="OVERLAY">
+                <FontString parentKey="Note" inherits="GameFontHighlightSmall" justifyH="LEFT"
+                            text="Use /wph to move or resize the bar.">
+                    <Anchors>
+                        <Anchor point="LEFT" x="37" y="0"/>
+                    </Anchors>
+                </FontString>
+            </Layer>
+        </Layers>
+    </Frame>
 </Ui>
