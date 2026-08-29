@@ -239,6 +239,11 @@ local isEditMode = false
 -- behave the same way when used mid-fight.
 local pendingEditModeOpen = false
 
+-- Diagnostic. Set only around the /wph call site, so UnlockBar can tell
+-- an unlock you deliberately typed from one that arrived some other way
+-- and stay quiet about the former.
+local unlockFromSlashCommand = false
+
 --------------------------------------------------
 -- CENTER GUIDE LINE (edit mode only)
 --------------------------------------------------
@@ -789,6 +794,16 @@ local function UnlockBar()
         return
     end
 
+    -- Diagnostic for unlocks nobody asked for. The EnableMouse hook
+    -- further up cannot see these: isEditMode is set just below, before
+    -- the mouse is enabled, so anything routed through here looks like a
+    -- legitimate unlock to it. Reports every caller except the /wph
+    -- command itself, which is the one case that needs no explaining.
+    if not unlockFromSlashCommand and not isEditMode then
+        print("WhitePlayerHealth: bar unlocked without /wph being typed. Call stack:")
+        print(debugstack(2, 4, 0))
+    end
+
     isEditMode = true
 
     SetUnlocked(true)
@@ -1273,7 +1288,9 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
             pendingEditModeOpen = false
             print("WhitePlayerHealth: edit mode request cancelled.")
         else
+            unlockFromSlashCommand = true
             UnlockBar()
+            unlockFromSlashCommand = false
 
             -- Only announce it if it actually opened - UnlockBar()
             -- refuses during combat and says so itself.
