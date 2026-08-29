@@ -1375,9 +1375,17 @@ combatPanelFrame:SetScript("OnEvent", function(_, event)
     -- their normal open functions so there's a single call site each -
     -- combat has ended by now, so neither lockdown branch is taken, and
     -- if one somehow were, the request just stays queued for next time.
+    -- Announced because nothing else does. The slash handler prints the
+    -- "edit mode on" message, and it isn't in the loop here - so without
+    -- this the bar just silently becomes draggable some time after a
+    -- fight ends, which reads exactly like it unlocked itself.
     if pendingEditModeOpen then
         pendingEditModeOpen = false
         UnlockBar()
+
+        if isEditMode then
+            print("WhitePlayerHealth: combat over - opening the edit mode you asked for during the fight.")
+        end
     end
 
     if pendingConfigOpen then
