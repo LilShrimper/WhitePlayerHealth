@@ -20,7 +20,8 @@ drop above your character and forget about.
 - Gets out of the way in combat: both panels close when a fight starts,
   and neither will open mid-fight
 - Settings panel at `Esc > Options > AddOns > WhitePlayerHealth`, covering
-  size, locking, the edit-mode center guide, shield fill direction and colors
+  size, the edit-mode center guide, shield fill direction and colors
+  (moving and resizing is done with `/wph`, not from the panel)
 - Settings are saved account-wide and shared by all characters
 
 ## Usage

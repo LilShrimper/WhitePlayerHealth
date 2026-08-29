@@ -4,4 +4,4 @@
 ## SavedVariables: WhitePlayerHealthDB
 
 WhitePlayerHealth.lua
-ColorPreview.xml
+SettingsWidgets.xml
