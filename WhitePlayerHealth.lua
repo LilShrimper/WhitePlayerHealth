@@ -639,13 +639,11 @@ end)
 -- HEALTH
 --------------------------------------------------
 
+-- Value only. The bar's min/max is set by UpdateMaxHealth below, which
+-- runs on UNIT_MAXHEALTH rather than here - this fires many times a
+-- second in combat, and max health is not what is changing.
 local function UpdateHealth()
-    local maxHealth = UnitHealthMax("player")
-
-    if maxHealth and maxHealth > 0 then
-        bar:SetMinMaxValues(0, maxHealth)
-        bar:SetValue(UnitHealth("player"))
-    end
+    bar:SetValue(UnitHealth("player"))
 end
 
 --------------------------------------------------
@@ -667,7 +665,6 @@ local absorbBar = CreateFrame("StatusBar", nil, bar)
 absorbBar:SetAllPoints(bar)
 absorbBar:SetFrameLevel(bar:GetFrameLevel() + 1)
 absorbBar:SetStatusBarTexture("Interface\\Buttons\\WHITE8x8")
-absorbBar:SetReverseFill(true)
 
 local function ApplyShieldColor()
     local hexColor = GetValidHexColor(WhitePlayerHealthDB.shieldColor, DEFAULT_SHIELD_COLOR)
@@ -681,35 +678,52 @@ ApplyShieldColor()
 
 -- WhitePlayerHealthDB.absorbFillDirection is "RTL" (default, fills
 -- from the right edge toward the left) or "LTR" (fills from the left
--- edge toward the right). Reasserted on every update, defensively, in
--- case anything ever resets the flag.
+-- edge toward the right).
 --
--- Deliberately does NOT refresh the settings-panel color previews:
--- UpdateAbsorb() calls this on every health/absorb tick, so doing that
--- here meant rebuilding the preview textures continuously through a
--- fight. The two paths that actually change the fill direction call
--- RefreshColorPreviews() themselves instead.
+-- Called once here and again whenever the setting changes, rather than
+-- on every health tick as it used to be. Nothing else touches the fill
+-- direction, so re-asserting it continuously was work that could never
+-- change the outcome.
 local function ApplyAbsorbFillDirection()
     absorbBar:SetReverseFill(WhitePlayerHealthDB.absorbFillDirection ~= "LTR")
 end
 
+ApplyAbsorbFillDirection()
+
+-- Value only, same as UpdateHealth - and only worth running on
+-- UNIT_ABSORB_AMOUNT_CHANGED, since a health tick cannot change it.
+--
+-- The nil-check only tests whether Lua got a value at all: a truthiness
+-- check, not a numeric comparison, so it stays valid even when the
+-- value is a Secret Value. Passing it straight into SetValue is the
+-- only operation performed on it.
 local function UpdateAbsorb()
-    local maxHealth = UnitHealthMax("player")
     local absorb = UnitGetTotalAbsorbs("player")
-
-    ApplyAbsorbFillDirection()
-
-    -- Nil-checks only test whether Lua got a value at all - that's a
-    -- truthiness check, not a numeric comparison, so it's fine even
-    -- if the value turns out to be secret. Passing it straight into
-    -- SetMinMaxValues/SetValue below is the only operation performed
-    -- on it.
-    if maxHealth then
-        absorbBar:SetMinMaxValues(0, maxHealth)
-    end
 
     if absorb then
         absorbBar:SetValue(absorb)
+    end
+end
+
+--------------------------------------------------
+-- MAX HEALTH (scales both bars)
+--------------------------------------------------
+
+-- Both bars are scaled against max health, so this is the only place
+-- either SetMinMaxValues is needed. Runs on UNIT_MAXHEALTH and at
+-- login - previously both bars re-applied it on every health tick,
+-- which cost two UnitHealthMax calls and two SetMinMaxValues calls per
+-- tick to write back a number that had not moved.
+--
+-- Nil-checked rather than compared against 0, matching UpdateAbsorb:
+-- a truthiness check is safe on a Secret Value, a numeric comparison
+-- is not.
+local function UpdateMaxHealth()
+    local maxHealth = UnitHealthMax("player")
+
+    if maxHealth then
+        bar:SetMinMaxValues(0, maxHealth)
+        absorbBar:SetMinMaxValues(0, maxHealth)
     end
 end
 
@@ -848,7 +862,38 @@ events:RegisterUnitEvent("UNIT_ABSORB_AMOUNT_CHANGED", "player")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
 events:RegisterEvent("PLAYER_REGEN_ENABLED")
 
-events:SetScript("OnEvent", function(_, event, unit)
+-- Ordered hottest-first. UNIT_HEALTH fires many times a second in
+-- combat while the rest are occasional, so it is checked before them
+-- rather than after three comparisons that will nearly always fail.
+--
+-- Each event now does only the work it can actually have changed. The
+-- unit is no longer checked at all: RegisterUnitEvent already
+-- guarantees these only fire for the player.
+events:SetScript("OnEvent", function(_, event)
+    if event == "UNIT_HEALTH" then
+        UpdateHealth()
+        return
+    end
+
+    if event == "UNIT_ABSORB_AMOUNT_CHANGED" then
+        UpdateAbsorb()
+        return
+    end
+
+    if event == "UNIT_MAXHEALTH" then
+        -- Rescaling both bars changes what their existing values mean,
+        -- so re-push both alongside it.
+        UpdateMaxHealth()
+        UpdateHealth()
+        UpdateAbsorb()
+        return
+    end
+
+    if event == "PLAYER_REGEN_DISABLED" or event == "PLAYER_REGEN_ENABLED" then
+        UpdateVisibility()
+        return
+    end
+
     if event == "PLAYER_ENTERING_WORLD" then
         -- Lock state is never saved, so this is already the state after
         -- a fresh load - asserted explicitly anyway so the bar is
@@ -858,27 +903,10 @@ events:SetScript("OnEvent", function(_, event, unit)
         SetUnlocked(false)
 
         ApplySettings()
+        UpdateMaxHealth()
         UpdateHealth()
         UpdateAbsorb()
         UpdateVisibility()
-        return
-    end
-
-    if event == "PLAYER_REGEN_DISABLED" then
-        UpdateAbsorb()
-        UpdateVisibility()
-        return
-    end
-
-    if event == "PLAYER_REGEN_ENABLED" then
-        UpdateAbsorb()
-        UpdateVisibility()
-        return
-    end
-
-    if unit == "player" then
-        UpdateHealth()
-        UpdateAbsorb()
     end
 end)
 
@@ -1350,6 +1378,7 @@ end)
 --------------------------------------------------
 
 ApplySettings()
+UpdateMaxHealth()
 UpdateHealth()
 UpdateAbsorb()
 UpdateVisibility()
