@@ -239,11 +239,6 @@ local isEditMode = false
 -- behave the same way when used mid-fight.
 local pendingEditModeOpen = false
 
--- Diagnostic. Set only around the /wph call site, so UnlockBar can tell
--- an unlock you deliberately typed from one that arrived some other way
--- and stay quiet about the former.
-local unlockFromSlashCommand = false
-
 --------------------------------------------------
 -- CENTER GUIDE LINE (edit mode only)
 --------------------------------------------------
@@ -746,32 +741,6 @@ local function SetUnlocked(unlocked)
     UpdateGuideLineVisibility()
 end
 
--- The bar is a globally named frame, so anything else loaded can call
--- WhitePlayerHealthBar:EnableMouse(true) and make it draggable without
--- a single line of this addon running - which looks exactly like the
--- bar unlocking itself.
---
--- Every unlock of ours sets isEditMode before enabling the mouse (see
--- UnlockBar), so an enable arriving while isEditMode is false did not
--- come from here. debugstack names the file that called it, which is
--- usually enough to identify the addon responsible.
---
--- Reported once per session: whatever is doing this could be calling
--- from an OnUpdate, and 60 stack traces a second would bury the chat
--- frame rather than help. The first one identifies the culprit anyway.
-local reportedExternalUnlock = false
-
-hooksecurefunc(bar, "EnableMouse", function(_, enabled)
-    if not enabled or isEditMode or reportedExternalUnlock then
-        return
-    end
-
-    reportedExternalUnlock = true
-
-    print("WhitePlayerHealth: something outside this addon unlocked the bar. Call stack:")
-    print(debugstack(2, 4, 0))
-end)
-
 -- isEditMode is the single source of truth for "is the bar currently
 -- unlocked", and UpdateVisibility() only force-shows the bar while
 -- it's true - so every unlock path has to set it, which is why it's
@@ -779,6 +748,7 @@ end)
 -- unlocking while the bar was hidden (out of combat) left it hidden
 -- but genuinely unlocked, surfacing later when something else happened
 -- to show it and looking like the bar had unlocked itself.
+--
 -- The combat guard lives here rather than in the slash handler so it
 -- covers the deferred combat-end open as well as /wph itself. Callers
 -- check isEditMode afterwards to tell whether it actually opened, since
@@ -791,16 +761,6 @@ local function UnlockBar()
         end
 
         return
-    end
-
-    -- Diagnostic for unlocks nobody asked for. The EnableMouse hook
-    -- further up cannot see these: isEditMode is set just below, before
-    -- the mouse is enabled, so anything routed through here looks like a
-    -- legitimate unlock to it. Reports every caller except the /wph
-    -- command itself, which is the one case that needs no explaining.
-    if not unlockFromSlashCommand and not isEditMode then
-        print("WhitePlayerHealth: bar unlocked without /wph being typed. Call stack:")
-        print(debugstack(2, 4, 0))
     end
 
     isEditMode = true
@@ -1264,9 +1224,7 @@ SlashCmdList["WHITEPLAYERHEALTH"] = function(msg)
             pendingEditModeOpen = false
             print("WhitePlayerHealth: edit mode request cancelled.")
         else
-            unlockFromSlashCommand = true
             UnlockBar()
-            unlockFromSlashCommand = false
 
             -- Only announce it if it actually opened - UnlockBar()
             -- refuses during combat and says so itself.
